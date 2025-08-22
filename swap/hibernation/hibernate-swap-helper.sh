@@ -139,6 +139,10 @@ create_swap() {
 }
 
 cleanup_swap() {
+	# Set boot counter to 0 after successful resume
+	steamos-bootconf --set boot-attempts 0
+	echo "The boot-attempt counter has been reset."
+
 	if [ ! -f "$METADATA_FILE" ]; then
 		echo "No hibernation swap metadata found"
 		exit 0
