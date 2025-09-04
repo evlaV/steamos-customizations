@@ -13,6 +13,22 @@
 #  modify it under the terms of the GNU Lesser General Public License as
 #  published by the Free Software Foundation; either version 2.1 of the License,
 #  or (at your option) any later version.
+#  
+#  The purpose of steamos-sync-preserved is to sync changes from the self install
+#  to an updated install, either with or without creating backups. Backups are
+#  created the first time we run with "all" option from rauc post-install.sh
+#  but not during shutdown when any other minor changes are synced with "catchup"
+#  option.
+#
+#  Usage:
+#  steamos-sync-preserved <all|catchup>
+#
+#  steamos-sync-preserved all - Backs up and syncs changes from self /etc to
+#    the other /etc
+#    
+#  steamos-sync-preserved catchup - Syncs changes from the self /etc to other
+#    without doing any of the backup steps.
+#
 
 set -e
 set -u
@@ -21,18 +37,12 @@ ERR=0 # the error code returned by this script
 BACKUP_TEMP_DIR= # temporary directory used to store the /etc backup
 
 SYMLINKS_DIR=@udev_symlinks_absdir@
-BOOTCONF_RELDIR=@bootconf_reldir@
-PARTSETS_RELDIR=@partsets_reldir@
-ROOTHASH_RELPATH=@roothash_relpath@
-RAUC_RUNTIME_DIR=@rauc_runtime_dir@
-REBOOT_FOR_UPDATE=@reboot_for_update@
 ETC_OVERLAY_ABSDIR=@etc_overlay_absdir@
 ETC_BACKUP_DIR=@etc_backup_dir@
 ATOMIC_UPDATE_CONF_D=@atomic_update_conf_d@
+ATOMIC_UPDATE_EXAMPLE_D=@atomic_update_example_d@
 
 ATOMIC_UPDATE_KEEP_CONF="atomic-update-keep.conf"
-
-OWD="$(dirname "$(readlink -f "$0")")"
 
 #
 # Final cleanup before exiting
@@ -60,181 +70,56 @@ err () { echo >&2 "Error:" "$@"; ERR=1; }
 fail() { echo >&2 "Error:" "$@"; exit 1; }
 
 
-#
-# Re-enable systemd timers
-#
-
-ACTIVE_TIMERS=$RAUC_RUNTIME_DIR/active-timers
-
-if [ -e "$ACTIVE_TIMERS" ]; then
-    while read -r service; do
-        [[ "$service" ]] || continue
-        systemctl start "$service"
-    done < "$ACTIVE_TIMERS"
+# Make sure we have other mounted, otherwise bail
+if ! mountpoint -q /mnt; then
+    fail "/mnt is not mounted. Bailing."
 fi
 
-rm -f $ACTIVE_TIMERS
+if ! mountpoint -q /mnt/var; then
+    fail "/mnt/var is not mounted. Bailing."
+fi
 
-#
-# Take a slot and the json from steamos-atomupd/manifest.json and make
-# a suitable boot menu label, falling back to something generic
-#
+# Check which operations we are doing, otherwise print usage
+SYNCTYPE=
 
-boot_label () {
-    local slot=${1:-\?}
-    local blob=${2:-"{}"}
-    local version=$(jq -rc '.version' <<<"$blob")
-    local product=$(jq -rc '.product' <<<"$blob")
-    local buildid=$(jq -rc '.buildid' <<<"$blob")
+case $1 in
+    all|catchup)
+        SYNCTYPE=$1
+        ;;
+    *)
+        fail "Sync source must be specified, either self or other"
+        ;;
+esac
 
-    case ${buildid}   in (null)            buildid="";      ;; esac
-    case ${version}   in (snapshot|null)   version="";      ;; esac
-    case ${product,,} in (steamos|null|'') product=SteamOS; ;; esac
+log "Detecting 'other' partition"
 
-    local ident=${version}${version:+-}${buildid}
+declare BOOTED_SLOT=$(steamos-bootconf this-image)
+if [ -z "$BOOTED_SLOT" ]; then
+    BOOTED_SLOT=$(cat /run/steamos-booted-slot)
+fi
 
-    echo "${product}-$slot${ident:+-}${ident}"
-}
-
-#
-# Handle the 'other' efi partition
-#
-
-configure_other_efi() {
-    local efi=$1
-    local keep_slot=$2
-    local update_slot=$3
-    local bootconf=
-    local confdir=
-    local partsets=
-    local roothash=
-    local ident=
-    local self_partsets=
-
-    # bootconf needs the partset data now so set it up first:
-    partsets=$efi/$PARTSETS_RELDIR
-    if ! [ -e "$partsets" ]; then
-        self_partsets="/efi/$PARTSETS_RELDIR"
-        log "Initializing 'other' efi partsets: '$self_partsets' -> '$partsets'"
-        mkdir -p "$partsets"
-        cp "$self_partsets/all"    "$partsets/"
-        cp "$self_partsets/shared" "$partsets/"
-
-        # the updated slot partset info goes into self,
-        # and the preserved slot info goes into other
-        # we could just swap self and other, but we want to support
-        # updates while the dev slot is booted as well as A/B:
-        cp "$self_partsets/$update_slot"  "$partsets/self"
-        cp "$self_partsets/$keep_slot"    "$partsets/other"
-
-        if [ -e "$self_partsets/dev" ]; then
-            cp "$self_partsets/dev" "$partsets/dev"
-        fi
-    fi
-
-    ident=$update_slot
-    confdir=/esp/$BOOTCONF_RELDIR
-    bootconf=$confdir/${ident}.conf
-
-    if ! [ -e "$bootconf" ]; then
-        log "Initializing 'other' esp bootconf: '$bootconf'"
-        mkdir -p "$confdir"
-        steamos-bootconf create --conf-dir "$confdir" --image "$ident" --set title "$ident"
-    fi
-
-    roothash=$efi/$ROOTHASH_RELPATH
-    if [ -e "$RAUC_UPDATE_SOURCE/roothash" ]; then
-        mkdir -p "$(dirname "$roothash")"
-        cp -f "$RAUC_UPDATE_SOURCE/roothash" "$roothash"
-    fi
-}
-
-log "Detecting 'other' efi partition"
-
-declare -r BOOTED_SLOT=$(steamos-bootconf this-image)
-PRESERVED_SLOT=
-UPDATED_SLOT=
+OTHER_SLOT=
+VAR_CURRENT=/var
 
 log "Booted into slot $BOOTED_SLOT"
 
 case $BOOTED_SLOT in
     A)
-        PRESERVED_SLOT=A
-        UPDATED_SLOT=B
-        EFI_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/other/efi)
+        OTHER_SLOT=B
         ;;
     B)
-        PRESERVED_SLOT=B
-        UPDATED_SLOT=A
-        EFI_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/other/efi)
+        OTHER_SLOT=A
         ;;
     *)
-        while read valid slot x
-        do
-            case $valid$slot in
-                +A)
-                    UPDATED_SLOT=B
-                    PRESERVED_SLOT=A
-                    ;;
-                +B)
-                    UPDATED_SLOT=A
-                    PRESERVED_SLOT=B
-                    ;;
-            esac
-        done < <(steamos-bootconf list-images)
-        EFI_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$UPDATED_SLOT/efi)
+        fail "Booted Slot is neither A nor B. Bailing."
         ;;
 esac
 
-log "Update slot candidate is $UPDATED_SLOT"
-
-log "Configuring the 'other' efi partition $EFI_DEVICE_OTHER " \
-    "($PRESERVED_SLOT -> $UPDATED_SLOT)"
-
-[ -b "$EFI_DEVICE_OTHER" ] || \
-    fail "Other efi device '$EFI_DEVICE_OTHER' not found"
-
-mount "$EFI_DEVICE_OTHER" /mnt
-configure_other_efi /mnt $PRESERVED_SLOT $UPDATED_SLOT || \
-    err "Failed to configure the 'other' efi"
-umount /mnt
+log "Other slot candidate is $OTHER_SLOT"
 
 #
 # Handle the 'other' var partition
 #
-
-ismounted() {
-    local device=$1
-
-    findmnt --real --source "$device" >/dev/null 2>&1
-}
-
-reformat_device_ext4() {
-    local device=$1
-    local opts=
-    local label=
-
-    device=$(readlink -f "$device")
-    if ! [ -b "$device" ]; then
-        warn "'$device' is not a block device"
-        return
-    fi
-
-    if ismounted "$device"; then
-        umount -v "$device"
-    fi
-
-    if ismounted "$device"; then
-        umount -v -f "$device"
-    fi
-
-    label=$(e2label "$device")
-    if [ "$label" ]; then
-        opts="$opts -L $label"
-    fi
-
-    mkfs.ext4 -q -F $opts "$device"
-}
 
 remove_old_files() {
     local dir=$1
@@ -278,7 +163,7 @@ backup_etc_changes() {
         -I 'xz -T0' \
         --transform "s,^${src#/}${upper_dir},etc," \
         "${src}${upper_dir}"; then
-
+    
         warn "Failed to archive the content of /etc"
         return 1
     fi
@@ -303,11 +188,11 @@ backup_etc_changes() {
     # Remove older backups until we have enough space
     while true; do
         free_space=$(df --output=avail --block-size=1K "${backup_dir}" | tail -n 1)
-
+    
         if (( backup_size <= free_space )); then
             break
         fi
-
+    
         if ! remove_old_files "${backup_dir}" 1; then
             warn "Failed to remove the oldest /etc backup"
             return 1
@@ -337,7 +222,7 @@ keep_previous_etc_copy() {
     mkdir -p "${dst}${previous_etc_dir}"
 
     src_upper_dir_size=$(du -s --block-size=1K --exclude "${src}${previous_etc_dir}" "${src}${upper_dir}" | cut -f1)
-
+    
     free_space=$(df --output=avail --block-size=1K "${dst}${previous_etc_dir}" | tail -n 1)
 
     if (( free_space < src_upper_dir_size )); then
@@ -349,14 +234,14 @@ keep_previous_etc_copy() {
     printf "%s\n" "The '/etc/previous' directory contains the edited files that you had" \
         "in '/etc' before you applied the last system update." \
         "You can find a more detailed explanation of how /etc changes are preserved by" \
-        "reading the header of '${OWD}/${ATOMIC_UPDATE_KEEP_CONF}'" > "${dst}${previous_etc_dir}"/README
+        "reading the header of '${ATOMIC_UPDATE_EXAMPLE_D}/${ATOMIC_UPDATE_KEEP_CONF}'" > "${dst}${previous_etc_dir}"/README
 
     if ! rsync \
         --archive \
         --one-file-system \
         --exclude="/previous" \
         "${src}${upper_dir}/" "${dst}${previous_etc_dir}/"; then
-
+    
         warn "rsync failed to sync the /etc changes to the \"previous\" directory"
         return 1
     fi
@@ -413,7 +298,7 @@ sync_var_mountpoints() {
 
     # Remove the leading "/etc" because we are syncing those files from
     # the overlayfs and not directly from "/etc".
-    sed 's#^/etc##' "${OWD}/${ATOMIC_UPDATE_KEEP_CONF}" >> "${config}"
+    sed 's#^/etc##' "${ATOMIC_UPDATE_EXAMPLE_D}/${ATOMIC_UPDATE_KEEP_CONF}" >> "${config}"
 
     # Apart from the default config file, we also include all the eventual
     # user defined configuration files
@@ -430,7 +315,7 @@ sync_var_mountpoints() {
     # expected to be wiped on boot - see prepare_etc_overlay for details.
     mkdir -p "${dst}${upper_dir}"
     mkdir -p "${dst}${etc_overlay_in_var}/work"
-
+    
     log "Running rsync with the following config file:"
     log "$(cat "${config}")"
 
@@ -460,8 +345,12 @@ sync_var_mountpoints() {
         return 1
     fi
 
+    # Delete the temp config file copy
     rm -f "${config}"
+}
 
+cleanup_dst_files() {
+    local dst=$1
     # Force the removal of user changes from `/etc/os-release`, because that
     # file is used by the Steam client to show the current image version, and
     # we don't want to preserve outdated info across updates.
@@ -476,7 +365,7 @@ sync_var_mountpoints() {
     rm -rf "$dst/lib/overlays/etc/upper/os-release" || :
     rm -rf "$dst/lib/overlays/etc/upper/rauc" || :
     rm -rf "$dst/lib/overlays/etc/upper/pacman.d/gnupg" || :
-
+    
     # Explicitly remove and mask/whiteout the .updated files in /var and /etc
     # respectively. Counter intuitively The timestamp stored is for the /usr
     # folder. Without this services like ldconfig won't trigger and we'll end up
@@ -491,88 +380,28 @@ sync_var_mountpoints() {
 
 log "Syncing the var partitions from 'self' to 'other'"
 
-ROOTFS_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$UPDATED_SLOT/rootfs)
-VAR_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$UPDATED_SLOT/var)
-VAR_DEVICE_FROM=
-VAR_FROM=
-case $BOOTED_SLOT in
-    A|B)
-        VAR_FROM=/var
-        ;;
-    dev)
-        mkdir -p /tmp/from-var
-        VAR_DEVICE_FROM=$(realpath $SYMLINKS_DIR/$PRESERVED_SLOT/var)
-        VAR_FROM=/tmp/from-var
-        ;;
-esac
+ROOTFS_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$OTHER_SLOT/rootfs)
+VAR_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$OTHER_SLOT/var)
 
 [ -b "$VAR_DEVICE_OTHER" ] || \
     fail "Other var device '$VAR_DEVICE_OTHER' not found"
 
-if [ -n "$VAR_DEVICE_FROM" ]; then
-    [ -b "$VAR_DEVICE_FROM" ] ||
-        fail "Source var device '$VAR_DEVICE_FROM' not found"
-    mount "$VAR_DEVICE_FROM" "$VAR_FROM"
+fsfreeze -f "$VAR_CURRENT"
+sync_var_mountpoints "$VAR_CURRENT" /mnt/var /mnt/etc || \
+    warn "Failed to sync var partitions"
+
+if [ $SYNCTYPE == "all" ]; then
+    if [ $ERR == 0 ]; then
+        cleanup_dst_files /mnt/var || \
+            warn "Failed to cleanup /etc files we want from the new image"
+        keep_previous_etc_copy "$VAR_CURRENT" /mnt/var || \
+            warn "Failed to copy the /etc changes to /etc/previous"
+
+        backup_etc_changes "$VAR_CURRENT" /mnt/var || \
+            warn "Failed to create an /etc backup"
+    fi
 fi
 
-reformat_device_ext4 "$VAR_DEVICE_OTHER" || \
-    err "Failed to reformat other var partition"
-
-# Mount the rootfs device because we want to compare the upper /etc
-# with the lowerdir
-mount -o ro "$ROOTFS_DEVICE_OTHER" /mnt
-mount "$VAR_DEVICE_OTHER" /mnt/var
-fsfreeze -f "$VAR_FROM"
-sync_var_mountpoints "$VAR_FROM" /mnt/var /mnt/etc || \
-    err "Failed to sync var partitions"
-if [ $ERR == 0 ]; then
-    keep_previous_etc_copy "$VAR_FROM" /mnt/var || \
-        warn "Failed to copy the /etc changes to /etc/previous"
-
-    backup_etc_changes "$VAR_FROM" /mnt/var || \
-        warn "Failed to create an /etc backup"
-fi
-fsfreeze -u "$VAR_FROM"
-# Remove the old rootfs index to ensure that we either have the correct one
-# or that we don't have it at all.
-rm -f /mnt/var/lib/steamos-atomupd/rootfs.caibx
-mkdir -p /mnt/var/lib/steamos-atomupd
-cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/var/lib/steamos-atomupd/rootfs.caibx || \
-    warn "Failed to copy the rootfs seed index file"
-umount /mnt/var
-umount /mnt
-
-if [ -n "$VAR_DEVICE_FROM" ]; then
-    umount "$VAR_FROM"
-fi
-
-#
-# Handle the bootloaders and network configuration
-#
-
-log "Installing the bootloaders"
-# any newer image should have finalize-install but a downgrade may be missing it;
-# if so look for an older post-install script
-steamos-chroot --partset $UPDATED_SLOT -- steamos-finalize-install --no-kernel || \
-    steamos-chroot --partset $UPDATED_SLOT -- steamos-boot-install --no-kernel || \
-    err "Failed to install bootloaders"
-
-# Mark the new partition valid, otherwise it will not boot
-# (note; you can't call rauc status mark-good here)
-(( ERR == 0 )) && steamos-bootconf --image $UPDATED_SLOT set-mode reboot
-
-# Store the installed update version in a temporary file to record that we
-# have a pending reboot to switch to the new image
-if [ $ERR == 0 ]; then
-  update_manifest=$(steamos-chroot --partset $UPDATED_SLOT -- cat "/etc/steamos-atomupd/manifest.json")
-  update_buildid=$(jq -r '.buildid | select(type == "string")' <<< "$update_manifest")
-  update_version=$(jq -r '.version | select(type == "string")' <<< "$update_manifest")
-  echo "${update_buildid}-${update_version}" > "$REBOOT_FOR_UPDATE"
-  label=$(boot_label "$UPDATED_SLOT" "$update_manifest")
-  if [ -n "${label:-}" ]; then
-      steamos-chroot --partset $UPDATED_SLOT -- \
-                     steamos-bootconf config --set title "${label:-}"
-  fi
-fi
+fsfreeze -u "$VAR_CURRENT"
 
 exit $ERR
