@@ -19,3 +19,6 @@
 # Clean the pacman cache from the previous OS version.
 # Otherwise installing packages can fail due to invalid signatures.
 rm -rf /var/cache/pacman/pkg/
+
+# Use sync preserved script to grab any changes made after post-install.sh ran.
+steamos-sync-preserved other
