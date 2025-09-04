@@ -13,6 +13,22 @@
 #  modify it under the terms of the GNU Lesser General Public License as
 #  published by the Free Software Foundation; either version 2.1 of the License,
 #  or (at your option) any later version.
+#
+#  The purpose of steamos-sync-preserved is to sync changes from the self install
+#  to an updated install, either with or without creating backups. Backups are
+#  created the first time we run with "all" option from rauc post-install.sh
+#  but not during shutdown when any other minor changes are synced with "catchup"
+#  option.
+#
+#  Usage:
+#  steamos-sync-preserved <all|catchup>
+#
+#  steamos-sync-preserved all - Backs up and syncs changes from self /etc to
+#    the other /etc
+#
+#  steamos-sync-preserved catchup - Syncs changes from the self /etc to other
+#    without doing any of the backup steps.
+#
 
 set -e
 set -u
@@ -21,18 +37,12 @@ ERR=0 # the error code returned by this script
 BACKUP_TEMP_DIR= # temporary directory used to store the /etc backup
 
 SYMLINKS_DIR=@udev_symlinks_absdir@
-BOOTCONF_RELDIR=@bootconf_reldir@
-PARTSETS_RELDIR=@partsets_reldir@
-ROOTHASH_RELPATH=@roothash_relpath@
-RAUC_RUNTIME_DIR=@rauc_runtime_dir@
-REBOOT_FOR_UPDATE=@reboot_for_update@
 ETC_OVERLAY_ABSDIR=@etc_overlay_absdir@
 ETC_BACKUP_DIR=@etc_backup_dir@
 ATOMIC_UPDATE_CONF_D=@atomic_update_conf_d@
+ATOMIC_UPDATE_EXAMPLE_D=@atomic_update_example_d@
 
 ATOMIC_UPDATE_KEEP_CONF="atomic-update-keep.conf"
-
-OWD="$(dirname "$(readlink -f "$0")")"
 
 #
 # Final cleanup before exiting
@@ -61,53 +71,39 @@ fail() { echo >&2 "Error:" "$@"; exit 1; }
 
 log "Detecting 'other' efi partition"
 
+# Check which operations we are doing, otherwise print usage
+SYNCTYPE=
+
+case $1 in
+    all|catchup)
+        SYNCTYPE=$1
+        ;;
+    *)
+        fail "Sync type must be specified, either all or catchup"
+        ;;
+esac
+
+log "Detecting 'other' partition"
+
 declare -r BOOTED_SLOT=$(steamos-bootconf this-image)
-PRESERVED_SLOT=
-UPDATED_SLOT=
+OTHER_SLOT=
+VAR_CURRENT=/var
 
 log "Booted into slot $BOOTED_SLOT"
 
 case $BOOTED_SLOT in
     A)
-        PRESERVED_SLOT=A
-        UPDATED_SLOT=B
-        EFI_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/other/efi)
+        OTHER_SLOT=B
         ;;
     B)
-        PRESERVED_SLOT=B
-        UPDATED_SLOT=A
-        EFI_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/other/efi)
+        OTHER_SLOT=A
         ;;
     *)
-        while read valid slot x
-        do
-            case $valid$slot in
-                +A)
-                    UPDATED_SLOT=B
-                    PRESERVED_SLOT=A
-                    ;;
-                +B)
-                    UPDATED_SLOT=A
-                    PRESERVED_SLOT=B
-                    ;;
-            esac
-        done < <(steamos-bootconf list-images)
-        EFI_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$UPDATED_SLOT/efi)
+        fail "Booted Slot is neither A nor B. Bailing."
         ;;
 esac
 
-log "Update slot candidate is $UPDATED_SLOT"
-
-log "Configuring the 'other' efi partition $EFI_DEVICE_OTHER " \
-    "($PRESERVED_SLOT -> $UPDATED_SLOT)"
-
-[ -b "$EFI_DEVICE_OTHER" ] || \
-    fail "Other efi device '$EFI_DEVICE_OTHER' not found"
-
-mount "$EFI_DEVICE_OTHER" /mnt
-configure_other_efi /mnt $PRESERVED_SLOT $UPDATED_SLOT || \
-    err "Failed to configure the 'other' efi"
-umount /mnt
+log "Other slot candidate is $OTHER_SLOT"
 
 #
 # Handle the 'other' var partition
@@ -226,7 +222,7 @@ keep_previous_etc_copy() {
     printf "%s\n" "The '/etc/previous' directory contains the edited files that you had" \
         "in '/etc' before you applied the last system update." \
         "You can find a more detailed explanation of how /etc changes are preserved by" \
-        "reading the header of '${OWD}/${ATOMIC_UPDATE_KEEP_CONF}'" > "${dst}${previous_etc_dir}"/README
+        "reading the header of '${ATOMIC_UPDATE_EXAMPLE_D}/${ATOMIC_UPDATE_KEEP_CONF}'" > "${dst}${previous_etc_dir}"/README
 
     if ! rsync \
         --archive \
@@ -290,7 +286,7 @@ sync_var_mountpoints() {
 
     # Remove the leading "/etc" because we are syncing those files from
     # the overlayfs and not directly from "/etc".
-    sed 's#^/etc##' "${OWD}/${ATOMIC_UPDATE_KEEP_CONF}" >> "${config}"
+    sed 's#^/etc##' "${ATOMIC_UPDATE_EXAMPLE_D}/${ATOMIC_UPDATE_KEEP_CONF}" >> "${config}"
 
     # Apart from the default config file, we also include all the eventual
     # user defined configuration files
@@ -337,8 +333,12 @@ sync_var_mountpoints() {
         return 1
     fi
 
+    # Delete the temp config file copy
     rm -f "${config}"
+}
 
+cleanup_dst_files() {
+    local dst=$1
     # Force the removal of user changes from `/etc/os-release`, because that
     # file is used by the Steam client to show the current image version, and
     # we don't want to preserve outdated info across updates.
@@ -368,8 +368,8 @@ sync_var_mountpoints() {
 
 log "Syncing the var partitions from 'self' to 'other'"
 
-ROOTFS_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$UPDATED_SLOT/rootfs)
-VAR_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$UPDATED_SLOT/var)
+ROOTFS_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$OTHER_SLOT/rootfs)
+VAR_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$OTHER_SLOT/var)
 
 [ -b "$VAR_DEVICE_OTHER" ] || \
     fail "Other var device '$VAR_DEVICE_OTHER' not found"
@@ -377,6 +377,18 @@ VAR_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$UPDATED_SLOT/var)
 fsfreeze -f "$VAR_CURRENT"
 sync_var_mountpoints "$VAR_CURRENT" /mnt/var /mnt/etc || \
     warn "Failed to sync var partitions"
+
+if [ $SYNCTYPE == "all" ]; then
+    if [ $ERR == 0 ]; then
+        cleanup_dst_files /mnt/var || \
+            warn "Failed to cleanup /etc files we want from the new image"
+        keep_previous_etc_copy "$VAR_CURRENT" /mnt/var || \
+            warn "Failed to copy the /etc changes to /etc/previous"
+
+        backup_etc_changes "$VAR_CURRENT" /mnt/var || \
+            warn "Failed to create an /etc backup"
+    fi
+fi
 
 fsfreeze -u "$VAR_CURRENT"
 
