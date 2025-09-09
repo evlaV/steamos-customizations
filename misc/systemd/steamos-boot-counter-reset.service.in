@@ -1,0 +1,21 @@
+#  SPDX-License-Identifier: LGPL-2.1+
+#
+#  This file is part of steamos-customizations.
+#
+#  steamos-customizations is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public License as
+#  published by the Free Software Foundation; either version 2.1 of the License,
+#  or (at your option) any later version.
+
+[Unit]
+Description=Reset Boot Counter
+After=systemd-hibernate-clear.service
+Wants=systemd-hibernate-clear.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/steamos-bootconf --set boot-attempts 0
+RemainAfterExit=true
+
+[Install]
+WantedBy=systemd-hibernate-clear.service
