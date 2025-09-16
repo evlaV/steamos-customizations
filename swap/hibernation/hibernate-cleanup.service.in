@@ -14,8 +14,6 @@ RequiresMountsFor=/home
 After=systemd-hibernate-clear.service
 Wants=systemd-hibernate-clear.service
 
-AssertPathExists=/home/hibernation.swapfile
-
 [Service]
 Type=oneshot
 ExecStart=@libexecdir@/steamos/hibernate-swap-helper.sh cleanup
