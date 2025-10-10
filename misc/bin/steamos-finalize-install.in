@@ -216,7 +216,11 @@ fi
 
 if in_chroot
 then
-    # Trigger steamos-post-update.service on the next boot
+    # Trigger steamos-post-update.service on the next boot.
+    # The directory `/var/lib/steamos-atomupd` should have been created by post-install.sh already,
+    # but if the starting image is too old, that could not be the case.
+    mkdir -p /var/lib/steamos-atomupd || \
+        echo "Warning: Failed to create the directory /var/lib/steamos-atomupd" >&2
     touch /var/lib/steamos-atomupd/system-updated || \
         echo "Warning: Failed to create the trigger file /var/lib/steamos-atomupd/system-updated. steamos-post-update.service may not run on first boot." >&2
 fi
