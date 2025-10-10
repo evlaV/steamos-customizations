@@ -217,5 +217,6 @@ fi
 if in_chroot
 then
     # Trigger steamos-post-update.service on the next boot
-    touch /var/lib/steamos-atomupd/system-updated
+    touch /var/lib/steamos-atomupd/system-updated || \
+        echo "Warning: Failed to create the trigger file /var/lib/steamos-atomupd/system-updated. steamos-post-update.service may not run on first boot." >&2
 fi
