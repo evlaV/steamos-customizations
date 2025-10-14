@@ -10,6 +10,7 @@ SYSCTL_CONFIG := $(wildcard sysctl.d/*.conf)
 SDDM_CONFIG := sddm.conf.d/steamos.conf
 LODIND_CONFIG := $(wildcard journald.conf.d/*.conf)
 SLEEP_CONFIG := $(wildcard sleep.conf.d/*.conf)
+SLEEP_SCRIPTS := $(wildcard system-sleep/*)
 PROFILE_CONFIG := profile.d/steamos.sh
 XORG_CONFIG := xorg.conf.d/10-steamos-virtualdisplaysize.conf
 PROTON_LIMITS_CONFIG := limits.d/15-proton-nice.conf
@@ -47,6 +48,8 @@ install: all
 	install -m 0644 $(LODIND_CONFIG) $(DESTDIR)$(libdir)/systemd/journald.conf.d/
 	install -d $(DESTDIR)$(libdir)/systemd/sleep.conf.d/
 	install -m 0644 $(SLEEP_CONFIG) $(DESTDIR)$(libdir)/systemd/sleep.conf.d/
+	install -d $(DESTDIR)$(libdir)/systemd/system-sleep
+	install -m 0755 $(SLEEP_SCRIPTS) $(DESTDIR)$(libdir)/systemd/system-sleep
 	install -d $(DESTDIR)$(sysconfdir)/profile.d
 	install -m 0644 $(PROFILE_CONFIG) $(DESTDIR)$(sysconfdir)/profile.d
 	install -d $(DESTDIR)$(sysconfdir)/limits.d
