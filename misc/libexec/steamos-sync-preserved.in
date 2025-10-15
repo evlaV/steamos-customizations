@@ -227,7 +227,8 @@ keep_previous_etc_copy() {
     free_space=$(df --output=avail --block-size=1K "${dst}${previous_etc_dir}" | tail -n 1)
 
     if (( free_space < src_upper_dir_size )); then
-        warn "There is not enough free space to keep a copy of the previous /etc edits"
+        warn "There is not enough free space to keep a copy of the previous /etc edits deleting previous etc dir"
+        rm "${dst}${previous_etc_dir}" || :
         return 1
     fi
 
