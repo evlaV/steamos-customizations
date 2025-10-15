@@ -280,12 +280,19 @@ mount "$VAR_DEVICE_OTHER" /mnt/var
 #
 /usr/lib/steamos/steamos-sync-preserved all
 
-# Remove the old rootfs index to ensure that we either have the correct one
-# or that we don't have it at all.
-rm -f /mnt/var/lib/steamos-atomupd/rootfs.caibx
+# To make sure we have enough space for the new rootfs.caibx file,
+# we copy it first to a temporary file and only move it into place.
+# This way we either have a valid complete file in place,
+# or that we have the old one which is invalid and will be regenerated later.
 mkdir -p /mnt/var/lib/steamos-atomupd
-cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/var/lib/steamos-atomupd/rootfs.caibx || \
+cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/var/lib/steamos-atomupd/rootfs.caibx.tmp || \
     warn "Failed to copy the rootfs seed index file"
+
+# File was copied ok, so move it into place
+if [ -x /mnt/var/lib/steamos-atomupd/rootfs.caibx.tmp ]; then
+    mv /mnt/var/lib/steamos-atomupd/rootfs.caibx.tmp /mnt/var/lib/steamos-atomupd/rootfs.caibx
+fi
+
 umount /mnt/var
 umount /mnt
 
