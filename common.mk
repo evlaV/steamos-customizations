@@ -121,6 +121,9 @@ REBOOT_FOR_UPDATE := $(STEAMOS_ATOMUPD_RUNTIME_DIR)/reboot_for_update
 # directories that they want to preserve across updates
 ATOMIC_UPDATE_CONF_D := $(sysconfdir)/atomic-update.conf.d
 
+# Directory for atomupd-example-keep.conf file
+ATOMIC_UPDATE_EXAMPLE_D := $(libdir)/rauc/
+
 # When applying an update, this is the directory where the edited /etc files
 # will be backed up
 ETC_BACKUP_DIR := /var/lib/steamos-atomupd/etc_backup
@@ -161,6 +164,7 @@ SDDM_AUTOLOGIN_CONF := $(sysconfdir)/sddm.conf.d/zz-steamos-autologin.conf
 	  -e 's|@steamos_atomupd_runtime_dir@|$(STEAMOS_ATOMUPD_RUNTIME_DIR)|g' \
 	  -e 's|@reboot_for_update@|$(REBOOT_FOR_UPDATE)|g' \
 	  -e 's|@atomic_update_conf_d@|$(ATOMIC_UPDATE_CONF_D)|g' \
+	  -e 's|@atomic_update_example_d@|$(ATOMIC_UPDATE_EXAMPLE_D)|g' \
 	  -e 's|@etc_backup_dir@|$(ETC_BACKUP_DIR)|g' \
 	  -e 's|@sddm_autologin_conf@|$(SDDM_AUTOLOGIN_CONF)|g' \
 	  $< > $@
