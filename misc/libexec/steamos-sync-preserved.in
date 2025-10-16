@@ -228,7 +228,7 @@ keep_previous_etc_copy() {
 
     if (( free_space < src_upper_dir_size )); then
         warn "There is not enough free space to keep a copy of the previous /etc edits deleting previous etc dir"
-        rm "${dst}${previous_etc_dir}" || :
+        rmdir "${dst}${previous_etc_dir}" || :
         return 1
     fi
 
@@ -280,8 +280,8 @@ sync_var_mountpoints() {
     # anything already on the target, so having the creation of the target be
     # an atomic operation is unimportant.
     #
-    # we also do the copy in two phases: 1st the important dirs which we know
-    # are required for proper operation of the OS, then the "nice to have"
+    # we also do the copy in two phases: 1st all subfolders are attempted.
+    # if that fails we wipe /var and try again without optional
     # directories without which we can still go on working:
 
     local -a syncargs=(--archive --delete --inplace --one-file-system)
@@ -300,26 +300,30 @@ sync_var_mountpoints() {
     local -a optdirs=()
     for x in "${optd[@]}"; do optdirs+=(--exclude="/$x/"); done
     #########################################################################
-    # First pass: skip compulsory exclusions _and_ optional targets
+    # First pass: skip compulsory exclusions but try everything else
+    # If this fails wipe /var and try again without optional folders
     if ! rsync \
          "${syncargs[@]}" \
          "${exclude[@]}" \
-         "${optdirs[@]}" \
          "$src/" "$dst/"
     then
-        warn "rsync failed to sync files from \"$src/\" to \"$dst\""
-        return 1
-    fi
+        warn "rsync failed to sync optional files from \"$src/\" to \"$dst\" trying again without optional dirs"
 
-    # Second pass: skip just the compulsory exclusions
-    # This is permitted to fail since everything we _have_ to have should
-    # have been synced in the first pass.
-    if ! rsync \
-         "${syncargs[@]}" \
-         "${exclude[@]}"  \
-         "$src/" "$dst/"
-    then
-        warn "rsync failed to sync optional files from \"$src\" to \"$dst\""
+        # Delete /run/steamos-booted-slot to avoid second sync later.
+        rm /run/steamos-booted-slot || :
+
+        # Wipe /var and try again without the optional folders
+        rm -rf "${dst}"/* || :
+
+        # Second pass: skip just the compulsory exclusions and the optional folders
+        if ! rsync \
+             "${syncargs[@]}" \
+             "${exclude[@]}"  \
+             "${optdirs[@]}" \
+             "$src/" "$dst/"
+        then
+            warn "rsync failed to sync required files from \"$src\" to \"$dst\""
+        fi
     fi
     ########################################################################
 
@@ -373,9 +377,23 @@ sync_var_mountpoints() {
         --exclude="*" \
         "${src}${upper_dir}/" "${dst}${upper_dir}/"; then
 
-        warn "rsync failed to sync the /etc changes"
+        warn "rsync failed to sync the /etc changes trying again without user-configured allow list"
         rm -f "${config}"
-        return 1
+        
+        if ! rsync \
+            -rlpgoD \
+            --delete \
+            --one-file-system \
+            --checksum \
+            --prune-empty-dirs \
+            --compare-dest="${lower_dir}" \
+            --include="*/" \
+            --exclude="*" \
+            "${src}${upper_dir}/" "${dst}${upper_dir}/"; then
+
+            warn "rsync failed again to sync the /etc changes even without user-configured allow list"
+            return 1
+        fi
     fi
 
     # Delete the temp config file copy
