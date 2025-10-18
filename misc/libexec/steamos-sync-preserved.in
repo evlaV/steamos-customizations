@@ -299,6 +299,13 @@ sync_var_mountpoints() {
     local -a optdirs=()
     for x in "${optd[@]}"; do optdirs+=(--exclude="/$x/"); done
     #########################################################################
+    # /var directories that MUST be synced
+    # Should be the opposite of the above optional list. If any more
+    # vital directories get added, add them to this white list:
+    local -e vitald=(lib lock run spool tmp)
+    local -a vitaldirs=()
+    fon x in "${vitald[@]}"; do vitaldirs+=(--include="/$x/"); done
+    #########################################################################
     # First pass: skip compulsory exclusions but try everything else
     # If this fails wipe /var and try again without optional folders
     if ! rsync \
@@ -314,11 +321,11 @@ sync_var_mountpoints() {
         # Wipe /var and try again without the optional folders
         rm -rf "${dst}"/* || :
 
-        # Second pass: skip just the compulsory exclusions and the optional folders
+        # Second pass: skip just the compulsory exclusions but keep the vital folders
         if ! rsync \
              "${syncargs[@]}" \
+             "${vitaldirs[@]}" \
              "${exclude[@]}"  \
-             "${optdirs[@]}" \
              "$src/" "$dst/"
         then
             warn "rsync failed to sync required files from \"$src\" to \"$dst\""
