@@ -293,13 +293,6 @@ sync_var_mountpoints() {
     for x in "${libexcl[@]}"; do exclude+=(--exclude="/lib/$x/"); done
     for x in "${excl[@]}";    do exclude+=(--exclude="/$x/");     done
     #########################################################################
-    # /var directories that _may_ be skipped when syncing
-    # in particular we allow log to fail because it may be very large on a
-    # misbehaving or misconfigured system:
-    local -a optd=(cache crash local games mail opt db empty log mnt)
-    local -a optdirs=()
-    for x in "${optd[@]}"; do optdirs+=(--exclude="/$x/"); done
-    #########################################################################
     # First pass: skip compulsory exclusions but try everything else
     # If this fails wipe /var and try again without optional folders
     if ! rsync \
@@ -315,14 +308,14 @@ sync_var_mountpoints() {
         # Wipe /var and try again without the optional folders
         rm -rf "${dst}"/* || :
 
-        # Second pass: skip just the compulsory exclusions and the optional folders
+        # Second pass: Only sync /var/lib since nothing else is mandatory
+        # but be sure to exclude the excluded dirs again
         if ! rsync \
              "${syncargs[@]}" \
              "${exclude[@]}"  \
-             "${optdirs[@]}" \
-             "$src/" "$dst/"
+             "$src/lib/" "$dst/lib/"
         then
-            warn "rsync failed to sync required files from \"$src\" to \"$dst\""
+            warn "rsync failed to sync required files from \"$src/lib/\" to \"$dst/lib/\""
         fi
     fi
     ########################################################################
@@ -391,8 +384,8 @@ sync_var_mountpoints() {
             --exclude="*" \
             "${src}${upper_dir}/" "${dst}${upper_dir}/"; then
 
-            warn "rsync failed again to sync the /etc changes even without user-configured allow list"
-            return 1
+            warn "rsync failed again to sync the /etc changes even without user-configured allow list. Removing partial sync."
+            rm -fR "${dst}${upper_dir}/*"
         fi
     fi
 
