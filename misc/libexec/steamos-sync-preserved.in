@@ -71,6 +71,15 @@ fail() { echo >&2 "Error:" "$@"; exit 1; }
 
 log "Detecting 'other' efi partition"
 
+# Make sure we have other mounted, otherwise bail
+if ! mountpoint -q /mnt; then
+    fail "/mnt is not mounted. Bailing."
+fi
+
+if ! mountpoint -q /mnt/var; then
+    fail "/mnt/var is not mounted. Bailing."
+fi
+
 # Check which operations we are doing, otherwise print usage
 SYNCTYPE=
 
@@ -85,7 +94,11 @@ esac
 
 log "Detecting 'other' partition"
 
-declare -r BOOTED_SLOT=$(steamos-bootconf this-image)
+declare BOOTED_SLOT=$(steamos-bootconf this-image)
+if [ -z "$BOOTED_SLOT" ]; then
+    BOOTED_SLOT=$(cat /run/steamos-post-update-shutdown-booted-slot)
+fi
+
 OTHER_SLOT=
 VAR_CURRENT=/var
 
