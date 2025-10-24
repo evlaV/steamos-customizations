@@ -1,0 +1,24 @@
+#  SPDX-License-Identifier: LGPL-2.1+
+#
+#  This file is part of steamos-customizations.
+#
+#  Copyright © 2024 Valve Corporation.
+#
+#  steamos-customizations is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public License as
+#  published by the Free Software Foundation; either version 2.1 of the License,
+#  or (at your option) any later version.
+
+[Unit]
+Description=Run tasks on shutdown after an OS update
+DefaultDependencies=no
+Before=shutdown.target
+ConditionPathExists=/run/steamos-post-update-shutdown-booted-slot
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=@libexecdir@/steamos/steamos-post-update-shutdown
+
+[Install]
+WantedBy=shutdown.target
