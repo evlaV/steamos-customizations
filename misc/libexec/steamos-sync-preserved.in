@@ -40,7 +40,7 @@ SYMLINKS_DIR=@udev_symlinks_absdir@
 ETC_OVERLAY_ABSDIR=@etc_overlay_absdir@
 ETC_BACKUP_DIR=@etc_backup_dir@
 ATOMIC_UPDATE_CONF_D=@atomic_update_conf_d@
-ATOMIC_UPDATE_EXAMPLE_D=@atomic_update_example_d@
+RAUC_LIBDIR=@rauc_libdir@
 
 ATOMIC_UPDATE_KEEP_CONF="atomic-update-keep.conf"
 
@@ -235,7 +235,7 @@ keep_previous_etc_copy() {
     printf "%s\n" "The '/etc/previous' directory contains the edited files that you had" \
         "in '/etc' before you applied the last system update." \
         "You can find a more detailed explanation of how /etc changes are preserved by" \
-        "reading the header of '${ATOMIC_UPDATE_EXAMPLE_D}/${ATOMIC_UPDATE_KEEP_CONF}'" > "${dst}${previous_etc_dir}"/README
+        "reading the header of '${RAUC_LIBDIR}/${ATOMIC_UPDATE_KEEP_CONF}'" > "${dst}${previous_etc_dir}"/README
 
     if ! rsync \
         --archive \
@@ -299,7 +299,7 @@ sync_var_mountpoints() {
 
     # Remove the leading "/etc" because we are syncing those files from
     # the overlayfs and not directly from "/etc".
-    sed 's#^/etc##' "${ATOMIC_UPDATE_EXAMPLE_D}/${ATOMIC_UPDATE_KEEP_CONF}" >> "${config}"
+    sed 's#^/etc##' "${RAUC_LIBDIR}/${ATOMIC_UPDATE_KEEP_CONF}" >> "${config}"
 
     # Apart from the default config file, we also include all the eventual
     # user defined configuration files
