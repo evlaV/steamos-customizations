@@ -158,7 +158,9 @@ UPDATED_SLOT=
 
 log "Booted into slot $BOOTED_SLOT"
 # Record the current booted slot in a temporary file that 
-# triggers the sync during shutdown (steamos-post-update-shutdown.service)
+# triggers the sync during shutdown (steamos-post-update-shutdown.service).
+# Failing to write that trigger file is not a critical issue, because the second
+# sync during shutdown is only a nice to have operation.
 if ! echo "$BOOTED_SLOT" > $STEAMOS_POST_UPDATE_SHUTDOWN_TRIGGER; then
     warn "Failed to record booted slot"
 fi
@@ -274,8 +276,7 @@ reformat_device_ext4 "$VAR_DEVICE_OTHER" || \
 mount -o ro "$ROOTFS_DEVICE_OTHER" /mnt
 mount "$VAR_DEVICE_OTHER" /mnt/var
 
-# Sync self to other
-# so we get any local changes made after rebooting
+# Sync everything that needs to be preserved from the current.
 #
 /usr/lib/steamos/steamos-sync-preserved all
 

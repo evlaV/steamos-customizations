@@ -23,10 +23,10 @@
 #  Usage:
 #  steamos-sync-preserved <all|catchup>
 #
-#  steamos-sync-preserved all - Backs up and syncs changes from self /etc to
-#    the other /etc
+#  steamos-sync-preserved all - Backs up and syncs changes from self /var and /etc to
+#    the other /var and /etc
 #
-#  steamos-sync-preserved catchup - Syncs changes from the self /etc to other
+#  steamos-sync-preserved catchup - Syncs changes from the self /var and /etc to other
 #    without doing any of the backup steps.
 #
 
@@ -348,10 +348,7 @@ sync_var_mountpoints() {
 
     # Delete the temp config file copy
     rm -f "${config}"
-}
 
-cleanup_dst_files() {
-    local dst=$1
     # Force the removal of user changes from `/etc/os-release`, because that
     # file is used by the Steam client to show the current image version, and
     # we don't want to preserve outdated info across updates.
@@ -393,8 +390,6 @@ sync_var_mountpoints "$VAR_CURRENT" /mnt/var /mnt/etc || \
 
 if [ $SYNCTYPE == "all" ]; then
     if [ $ERR == 0 ]; then
-        cleanup_dst_files /mnt/var || \
-            warn "Failed to cleanup /etc files we want from the new image"
         keep_previous_etc_copy "$VAR_CURRENT" /mnt/var || \
             warn "Failed to copy the /etc changes to /etc/previous"
 
