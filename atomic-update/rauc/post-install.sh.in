@@ -31,6 +31,7 @@ ETC_BACKUP_DIR=@etc_backup_dir@
 ATOMIC_UPDATE_CONF_D=@atomic_update_conf_d@
 
 ATOMIC_UPDATE_KEEP_CONF="atomic-update-keep.conf"
+STEAMOS_POST_UPDATE_SHUTDOWN_TRIGGER="/run/steamos-post-update-shutdown-booted-slot"
 
 OWD="$(dirname "$(readlink -f "$0")")"
 
@@ -56,8 +57,8 @@ trap cleanup EXIT
 
 log () { echo >&2 "$@"; }
 warn() { echo >&2 "Warning:" "$@"; }
-err () { echo >&2 "Error:" "$@"; ERR=1; }
-fail() { echo >&2 "Error:" "$@"; exit 1; }
+err () { echo >&2 "Error:" "$@"; rm -f $STEAMOS_POST_UPDATE_SHUTDOWN_TRIGGER; ERR=1; }
+fail() { echo >&2 "Error:" "$@"; rm -f $STEAMOS_POST_UPDATE_SHUTDOWN_TRIGGER; exit 1; }
 
 
 #
@@ -156,6 +157,13 @@ PRESERVED_SLOT=
 UPDATED_SLOT=
 
 log "Booted into slot $BOOTED_SLOT"
+# Record the current booted slot in a temporary file that 
+# triggers the sync during shutdown (steamos-post-update-shutdown.service).
+# Failing to write that trigger file is not a critical issue, because the second
+# sync during shutdown is only a nice to have operation.
+if ! echo "$BOOTED_SLOT" > $STEAMOS_POST_UPDATE_SHUTDOWN_TRIGGER; then
+    warn "Failed to record booted slot"
+fi
 
 case $BOOTED_SLOT in
     A)
@@ -236,261 +244,6 @@ reformat_device_ext4() {
     mkfs.ext4 -q -F $opts "$device"
 }
 
-remove_old_files() {
-    local dir=$1
-    local n_to_remove=$2
-
-    if (( $(find "${dir}" -maxdepth 1 -type f | wc -l) == 0 )); then
-        log "No files left to delete in ${dir}"
-        return 1
-    fi
-
-    find "${dir}" -maxdepth 1 -type f | \
-        sort | \
-        head -n "${n_to_remove}" | \
-        xargs rm -f
-}
-
-backup_etc_changes() {
-    local src=$1
-    local dst=$2
-    local backup_name
-    local backup_size
-    local old_backups_size
-    local free_space
-    # This is mounted at $dst, so we change the sysroot from `/var` to $dst
-    local backup_dir="${dst}${ETC_BACKUP_DIR#"/var"}"
-    local upper_dir="${ETC_OVERLAY_ABSDIR#"/var"}/upper"
-
-    BACKUP_TEMP_DIR=$(mktemp --tmpdir -d "etc_backup.XXXXXX")
-    if [ -z "${BACKUP_TEMP_DIR}" ]; then
-        warn "Failed to create a temporary directory for the /etc backup"
-        return 1
-    fi
-
-    mkdir -p "${backup_dir}"
-    backup_name="$(date '+%F_%H-%M-%S').tar.xz"
-
-    # When creating the backup we transform the directory structure so that instead of having
-    # the files under something like `var/lib/overlays/etc/upper/...` we end up with `etc/...`
-    if ! tar \
-        -cf "${BACKUP_TEMP_DIR}/${backup_name}" \
-        -I 'xz -T0' \
-        --transform "s,^${src#/}${upper_dir},etc," \
-        "${src}${upper_dir}"; then
-
-        warn "Failed to archive the content of /etc"
-        return 1
-    fi
-
-    backup_size=$(du -s --block-size=1K "${BACKUP_TEMP_DIR}" | cut -f1)
-
-    old_backups_size=$(du -s --block-size=1K "${backup_dir}" | cut -f1)
-
-    free_space=$(df --output=avail --block-size=1K "${backup_dir}" | tail -n 1)
-
-    # Maximum amount of free space that we can achieve if we delete
-    # all the older backups
-    maximum_free_space=$((free_space + old_backups_size))
-
-    # It is not guaranteed that we have enough space. If there are large files
-    # in /etc, it might happen that we are unable to keep a backup of them.
-    if (( maximum_free_space < backup_size )); then
-        warn "Even if we remove every old /etc backup, there is still not enough free space"
-        return 1
-    fi
-
-    # Remove older backups until we have enough space
-    while true; do
-        free_space=$(df --output=avail --block-size=1K "${backup_dir}" | tail -n 1)
-
-        if (( backup_size <= free_space )); then
-            break
-        fi
-
-        if ! remove_old_files "${backup_dir}" 1; then
-            warn "Failed to remove the oldest /etc backup"
-            return 1
-        fi
-    done
-
-    if ! cp "${BACKUP_TEMP_DIR}/${backup_name}" "${backup_dir}/"; then
-        warn "Failed to copy the new /etc backup"
-        return 1
-    fi
-
-    # Keep the latest 5 backups and remove the others. We don't want this to
-    # grow unconditionally.
-    remove_old_files "${backup_dir}" -5 || :
-}
-
-keep_previous_etc_copy() {
-    local src=$1
-    local dst=$2
-    local src_upper_dir_size
-    local free_space
-    local upper_dir="${ETC_OVERLAY_ABSDIR#"/var"}/upper"
-    local previous_etc_dir="${upper_dir}/previous"
-
-    # Remove the eventual "/etc/previous" files copied from $src
-    rm -rf "${dst}${previous_etc_dir}" || :
-    mkdir -p "${dst}${previous_etc_dir}"
-
-    src_upper_dir_size=$(du -s --block-size=1K --exclude "${src}${previous_etc_dir}" "${src}${upper_dir}" | cut -f1)
-
-    free_space=$(df --output=avail --block-size=1K "${dst}${previous_etc_dir}" | tail -n 1)
-
-    if (( free_space < src_upper_dir_size )); then
-        warn "There is not enough free space to keep a copy of the previous /etc edits"
-        return 1
-    fi
-
-    # Include a brief explanation of what `/etc/previous` is supposed to hold
-    printf "%s\n" "The '/etc/previous' directory contains the edited files that you had" \
-        "in '/etc' before you applied the last system update." \
-        "You can find a more detailed explanation of how /etc changes are preserved by" \
-        "reading the header of '${OWD}/${ATOMIC_UPDATE_KEEP_CONF}'" > "${dst}${previous_etc_dir}"/README
-
-    if ! rsync \
-        --archive \
-        --one-file-system \
-        --exclude="/previous" \
-        "${src}${upper_dir}/" "${dst}${previous_etc_dir}/"; then
-
-        warn "rsync failed to sync the /etc changes to the \"previous\" directory"
-        return 1
-    fi
-}
-
-sync_var_mountpoints() {
-    local src=$1
-    local dst=$2
-    local lower_dir=$3
-
-    # Remove the "/var" prefix to use this path in rsync. This effectively
-    # changes the sysroot from "/" to "/var".
-    local etc_overlay_in_var=${ETC_OVERLAY_ABSDIR#"/var"}
-    local upper_dir="${etc_overlay_in_var}/upper"
-    local config
-
-    # We exclude the directories /var/lib/{dkms,modules,pacman}, as they don't
-    # really represent a state that we want to keep, but rather a part of the
-    # rootfs that ends up leaving in /var for technical reasons. These pieces
-    # must be empty on first boot, so that they can be initialized from the
-    # factory that is shipped with the rootfs.
-    #
-    # We also need to exclude /var/boot, which might contain the initrd that
-    # was rebuilt to include nvidia drivers built by DKMS. Once again, this is
-    # not a state that we want to keep.
-    #
-    # Exclude the /etc overlay because that's handled separately.
-    #
-    # --one-file-system makes sure that we ignore all the directories from /home
-    # that are bind-mounted onto /var directories.
-
-    if ! rsync \
-        --archive \
-        --delete \
-        --one-file-system \
-        --exclude="/boot/" \
-        --exclude="/lib/dkms/" \
-        --exclude="/lib/modules/" \
-        --exclude="/lib/pacman/" \
-        --exclude="/lib/NetworkManager/" \
-        --exclude="/lost+found/" \
-        --exclude="${etc_overlay_in_var}" \
-        "$src/" "$dst/"; then
-
-        warn "rsync failed to sync \"$src\" to \"$dst\""
-        return 1
-    fi
-
-    config=$(mktemp --tmpdir "etc_config.XXXXXX")
-    if [ -z "${config}" ]; then
-        warn "Failed to create a temporary file for rsync"
-        return 1
-    fi
-
-    # Remove the leading "/etc" because we are syncing those files from
-    # the overlayfs and not directly from "/etc".
-    sed 's#^/etc##' "${OWD}/${ATOMIC_UPDATE_KEEP_CONF}" >> "${config}"
-
-    # Apart from the default config file, we also include all the eventual
-    # user defined configuration files
-    for file in "${ATOMIC_UPDATE_CONF_D}"/*.conf; do
-        if [ -f "${file}" ]; then
-            log "Keeping user defined files from '${file}'"
-            printf "\n%s" "$(sed 's#^/etc##' "${file}")" >> "${config}"
-        fi
-    done
-
-    # Create both upper and work directory, so steamos-chroot works correctly.
-    #
-    # Work directory should be clean, since it handles temporary state, and
-    # expected to be wiped on boot - see prepare_etc_overlay for details.
-    mkdir -p "${dst}${upper_dir}"
-    mkdir -p "${dst}${etc_overlay_in_var}/work"
-
-    log "Running rsync with the following config file:"
-    log "$(cat "${config}")"
-
-    # `-rlpgoD` is `--archive` without the `--times` option. We don't care about the
-    # modification times, just the content.
-    # `--compare-dest` allows us to synchronize only the files that actually changed.
-    # `--prune-empty-dirs` plus `--include="*/"` allow us to retain the
-    # directory structure while excluding empty directories.
-    # `--include-from="${config}"` is used to list all the files that we
-    # want to preserve.
-    # `--exclude="*"` is the final catch-all, to exclude all the files that
-    # were not explicitly listed in the config file.
-    if ! rsync \
-        -rlpgoD \
-        --delete \
-        --one-file-system \
-        --checksum \
-        --prune-empty-dirs \
-        --compare-dest="${lower_dir}" \
-        --include="*/" \
-        --include-from="${config}" \
-        --exclude="*" \
-        "${src}${upper_dir}/" "${dst}${upper_dir}/"; then
-
-        warn "rsync failed to sync the /etc changes"
-        rm -f "${config}"
-        return 1
-    fi
-
-    rm -f "${config}"
-
-    # Force the removal of user changes from `/etc/os-release`, because that
-    # file is used by the Steam client to show the current image version, and
-    # we don't want to preserve outdated info across updates.
-    #
-    # Remove any potential user changes to the RAUC configuration to avoid
-    # the risk of breaking subsequent updates by using an unexpected config.
-    #
-    # Remove the eventual gnupg keyring - the new image is RO and it makes
-    # little sense to have keyring around. People will either use
-    # steamos-devmode enable - which will regenerate it for them, or if they
-    # manually flip off the RO mode, they can issue pacman-key manually.
-    rm -rf "$dst/lib/overlays/etc/upper/os-release" || :
-    rm -rf "$dst/lib/overlays/etc/upper/rauc" || :
-    rm -rf "$dst/lib/overlays/etc/upper/pacman.d/gnupg" || :
-
-    # Explicitly remove and mask/whiteout the .updated files in /var and /etc
-    # respectively. Counter intuitively The timestamp stored is for the /usr
-    # folder. Without this services like ldconfig won't trigger and we'll end up
-    # with potential references to the other partset.
-    #
-    # Note: We want the explicit -r here since the user may have removed the
-    # file and created a folder in its place.
-    rm -rf "$dst/.updated" || :
-    rm -rf "$dst/lib/overlays/etc/upper/.updated" || :
-    mknod -m 000 "$dst/lib/overlays/etc/upper/.updated" c 0 0 || :
-}
-
-log "Syncing the var partitions from 'self' to 'other'"
-
 ROOTFS_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$UPDATED_SLOT/rootfs)
 VAR_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$UPDATED_SLOT/var)
 VAR_DEVICE_FROM=
@@ -522,23 +275,24 @@ reformat_device_ext4 "$VAR_DEVICE_OTHER" || \
 # with the lowerdir
 mount -o ro "$ROOTFS_DEVICE_OTHER" /mnt
 mount "$VAR_DEVICE_OTHER" /mnt/var
-fsfreeze -f "$VAR_FROM"
-sync_var_mountpoints "$VAR_FROM" /mnt/var /mnt/etc || \
-    err "Failed to sync var partitions"
-if [ $ERR == 0 ]; then
-    keep_previous_etc_copy "$VAR_FROM" /mnt/var || \
-        warn "Failed to copy the /etc changes to /etc/previous"
 
-    backup_etc_changes "$VAR_FROM" /mnt/var || \
-        warn "Failed to create an /etc backup"
-fi
-fsfreeze -u "$VAR_FROM"
-# Remove the old rootfs index to ensure that we either have the correct one
-# or that we don't have it at all.
-rm -f /mnt/var/lib/steamos-atomupd/rootfs.caibx
+# Sync everything that needs to be preserved from the current.
+#
+/usr/lib/steamos/steamos-sync-preserved all
+
+# To make sure we have enough space for the new rootfs.caibx file,
+# we copy it first to a temporary file and only move it into place.
+# This way we either have a valid complete file in place,
+# or that we have the old one which is invalid and will be regenerated later.
 mkdir -p /mnt/var/lib/steamos-atomupd
-cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/var/lib/steamos-atomupd/rootfs.caibx || \
+cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/var/lib/steamos-atomupd/rootfs.caibx.tmp || \
     warn "Failed to copy the rootfs seed index file"
+
+# File was copied ok, so move it into place
+if [ -x /mnt/var/lib/steamos-atomupd/rootfs.caibx.tmp ]; then
+    mv /mnt/var/lib/steamos-atomupd/rootfs.caibx.tmp /mnt/var/lib/steamos-atomupd/rootfs.caibx
+fi
+
 umount /mnt/var
 umount /mnt
 
@@ -575,4 +329,7 @@ if [ $ERR == 0 ]; then
   fi
 fi
 
+if [[ $ERR != 0 ]]; then
+    rm -f $STEAMOS_POST_UPDATE_SHUTDOWN_TRIGGER
+fi
 exit $ERR
