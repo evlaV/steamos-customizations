@@ -5,7 +5,7 @@ max-bundle-download-size=268435456
 activate-installed=false
 
 [keyring]
-path=/etc/rauc/keyring.pem
+directory=/etc/rauc/trusted_keys/
 
 [casync]
 tmppath=/tmp
