@@ -12,6 +12,7 @@ RAUC_CONFIG :=  $(patsubst %.in,%,$(RAUC_CONFIG_IN))
 RAUC_FALLBACK_CONFIG := $(sed '/install-args=/d;/use-desync=/d' < $(RAUC_CONFIG) > rauc/fallback-system.conf)
 RAUC_HOOKS_IN := $(wildcard rauc/*.sh.in)
 RAUC_HOOKS := $(patsubst %.in,%,$(RAUC_HOOKS_IN))
+RAUC_TRUSTED_KEYS := $(wildcard rauc/trusted_keys/*)
 STEAMOS_ATOMUPD_CONFIG_IN := steamos-atomupd/client.conf.in
 STEAMOS_ATOMUPD_CONFIG := $(patsubst %.in,%,$(STEAMOS_ATOMUPD_CONFIG_IN))
 SERVICES_OVERRIDE_IN := $(wildcard systemd/*/override.conf.in)
@@ -29,6 +30,8 @@ install: all
 	install -m 0644 $(COMPLETIONS) $(DESTDIR)$(completionsdir)
 	install -d $(DESTDIR)$(sysconfdir)/rauc
 	install -m 0644 $(RAUC_CONFIG) $(RAUC_FALLBACK_CONFIG) $(DESTDIR)$(sysconfdir)/rauc
+	install -d $(DESTDIR)$(sysconfdir)/rauc/trusted_keys
+	cp -a $(RAUC_TRUSTED_KEYS) $(DESTDIR)$(sysconfdir)/rauc/trusted_keys/
 	install -d $(DESTDIR)$(libdir)/rauc
 	install -m 0755 $(RAUC_HOOKS) $(DESTDIR)$(libdir)/rauc
 	install -m 0644 $(KEEP_CONFIG) $(DESTDIR)$(libdir)/rauc
