@@ -83,48 +83,32 @@ run_hook() {
 
     # HERE BE DRAGONS:
     #
-    # The whole RO rootfs setup and situation is quite tricky and should
-    # probably be reworked. Here's some historical information and current state
-    # of affairs:
+    # The RO rootfs setup and situation is tricky and has some non-obvious
+    # traps. Here's a summary:
     #
-    # Currently we mount the rootfs (with dracut) without an explicit RO/RW
-    # flag. This was required for the ext234 rootfs to work properly. In
-    # particular during steamos-readonly we toggle the tune2fs RO flag, which is
-    # the default state used by mount, whenever there is no explicit RO/RW
-    # passed.
+    # We used to mount the rootfs without an explicit RO/RW flag.
+    # This was required for the ext234 rootfs to work properly. In particular
+    # during steamos-readonly we set the tune2fs RO flag, which is the
+    # default state used by mount whenever there is no explicit RO/RW passed.
     #
-    # At the same time, that caused systemd to try and remount the rootfs (just
-    # after the pivot), resulting in failures. That was masked out via a config
-    # file.
+    # That caused systemd to try to remount the rootfs (after the root pivot)
+    # which resulted in failures. That was masked out via a config file.
     #
-    # Seemingly the explicit RO mount was also causing issues with btrfs rootfs.
-    # Since the `btrfs property set` was unable to toggle the RO flag.
+    # The explicit RO mount was also causing issues with btrfs rootfs,
+    # since btrfs uses 'btrfs property set' rather than the fstab flag.
     #
-    # Now enter mkinitcpio - it explicitly passes the RO/RW flag at mount with
-    # RO being the default. If we keep it as-is, the tune2fs RO flag is ignored
-    # and the ext234 fs will always be RO, so one has to manually remount on
-    # every boot ... even if they use steamos-readonly disable.
+    # mkinitcpio explicitly passes the RO/RW flag at mount (default RO).
+    # If we leave RO in the fstab the tune2fs RO flag is ignored and the
+    # ext234 rootfs will always be RO requiring a manual remount on
+    # every boot even when 'steamos-readonly disable' has been used.
     #
-    # On the btrfs front, the situation is similar and/or worse. One needs to
-    # remount RW manually even if they want to toggle back to steamos-readonly
-    # enable.
+    # On the btrfs front, the situation is worse. One needs to remount RW
+    # manually even to toggle back to steamos-readonly enable.
     #
-    # As a sane-ish default we opt for RW here, so while it means that for
-    # ext234 fs the RO tune2fs state will be invalid, yet both fs will just work
-    # correctly.
+    # As a sane-ish default we opt for RW here. This means that for
+    # ext234 the RO tune2fs state will be invalid but both fs will
+    # just work correctly with 'steamos-readonly'.
     #
-    # In addition/parallel to this behaviour, the usual expectation is to have
-    # /etc as non-overlay with RW rootfs, which cannot (trivially) happen. So
-    # all in all, we might need something like Android, whereby when the
-    # bootloader is unlocked the device is rebooted and some data (/etc overlay
-    # in our case) is wiped. Otherwise, any meaningful changes to the rootfs
-    # /etc will be masked by the overlay. Ideally steamos-readonly will toggle a
-    # file/flag where bootloader (or initrd) will parse it and do the right
-    # thing.
-    #
-    # But all that will happen another day.
-    #
-    # HERE BE DRAGONS:
     # shellcheck disable=SC2034 # used by init_functions:default_mount_handler()
     rwopt=rw
 }
