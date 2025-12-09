@@ -27,9 +27,28 @@ SYSUSERS := $(wildcard sysusers/*)
 UNITS := $(SERVICES) $(MOUNTS)
 CLEANABLE := $(BINARIES) $(LIBRARIES_EXEC) $(UNITS)
 
+-include renamed.mk
+
+.PHONY: all aliases install binary-aliases libexec-aliases
+
 all: $(BINARIES) $(LIBRARIES_EXEC) $(UNITS)
 
-install: all
+libexec-aliases: EXTRA_LINKS := 
+libexec-aliases: IDIR := $(DESTDIR)$(libexecdir)/steamos
+libexec-aliases: $(filter $(RENAMED_LIBX),$(LIBRARIES_EXEC))
+
+binary-aliases: EXTRA_LINKS := 
+binary-aliases: IDIR := $(DESTDIR)$(sbindir)
+binary-aliases: $(filter $(RENAMED_BINS),$(BINARIES))
+
+binary-aliases libexec-aliases:
+	@install -d $(DESTDIR)$(sbindir)
+	@(for X in $(^F) $(EXTRA_LINKS); \
+	  do ln -svf $(ALIAS) $(IDIR)/$${X//holo/steamos}; done)
+
+aliases: binary-aliases libexec-aliases
+
+install: all aliases
 	install -d $(DESTDIR)$(sbindir)
 	install -m 0755 $(BINARIES) $(DESTDIR)$(sbindir)
 	ln -sfv steamos-mount $(DESTDIR)$(sbindir)/mount.steamos
