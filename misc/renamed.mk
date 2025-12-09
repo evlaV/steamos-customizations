@@ -1,0 +1,6 @@
+EMPTY :=
+RENAMED_BINS := \
+  $(EMPTY)
+
+RENAMED_LIBX := \
+  $(EMPTY)
