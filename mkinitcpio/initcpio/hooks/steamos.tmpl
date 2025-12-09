@@ -43,9 +43,8 @@ to_integer() {
     fi
 }
 
-# under dracut we'd just call getarg whenever we needed a command line value
-# but initcpio does things a little differently so we cluster all the fetches
-# here in one callback:
+# mkinitcpio doesn't have a convenient kernel command line getarg
+# helper so we process all the arguments we care about in one place:
 steamos_parse_cmdline() {
     local key=$1 value=$2
 
@@ -72,12 +71,8 @@ run_hook() {
 
     parse_cmdline steamos_parse_cmdline </proc/cmdline
 
-    ######################################################################
-    # reuse dracut : pre-mount : 90 : steamos-udev-rules.sh
     steamos_setup_partsets "$steamos_efi"
 
-    ######################################################################
-    # from dracut : mount : 90 : steamos-root.sh
     rdev=/dev/@udev_symlinks_reldir@/self/rootfs
     msg "Waiting for root device $rdev"
     poll_device "$rdev"
@@ -132,9 +127,6 @@ run_hook() {
     # HERE BE DRAGONS:
     # shellcheck disable=SC2034 # used by init_functions:default_mount_handler()
     rwopt=rw
-
-    # NOTE: under dracut we explicitly mounted the root target. mkinitcpio will
-    # implicitly attempt to mount whatever 'root' is set to after 'run_hook'
 }
 
 ############################################################################
@@ -162,16 +154,8 @@ run_latehook() {
     # re-parse the command line (settings from run_hook will have
     # disappeared by now):
     parse_cmdline steamos_parse_cmdline </proc/cmdline
-
-    # reuse dracut : pre-pivot : 88 : steamos-factory-reset.sh
     factory_reset "$steamos_factory_reset"
-
-    # reuse dracut : pre-pivot : 89 : steamos-var.sh
     mount_var
-
-    # reuse dracut : pre-pivot : 90 : steamos-etc-overlay.sh
     setup_etc_overlay
-
-    # reuse dracut : pre-pivot : 90 : steamos-var-lib-modules.sh
     initialize_var_lib_modules
 }
