@@ -37,7 +37,7 @@ libexec-aliases: EXTRA_LINKS :=
 libexec-aliases: IDIR := $(DESTDIR)$(libexecdir)/steamos
 libexec-aliases: $(filter $(RENAMED_LIBX),$(LIBRARIES_EXEC))
 
-binary-aliases: EXTRA_LINKS := 
+binary-aliases: EXTRA_LINKS := mount.holo
 binary-aliases: IDIR := $(DESTDIR)$(sbindir)
 binary-aliases: $(filter $(RENAMED_BINS),$(BINARIES))
 
@@ -51,12 +51,12 @@ aliases: binary-aliases libexec-aliases
 install: all aliases
 	install -d $(DESTDIR)$(sbindir)
 	install -m 0755 $(BINARIES) $(DESTDIR)$(sbindir)
-	ln -sfv steamos-mount $(DESTDIR)$(sbindir)/mount.steamos
+	ln -sfv holo-mount $(DESTDIR)$(sbindir)/mount.holo
 	install -d $(DESTDIR)$(libexecdir)/steamos
 	install -m 0755 $(LIBRARIES_EXEC) $(DESTDIR)$(libexecdir)/steamos
 	install -d $(DESTDIR)$(completionsdir)
 	install -m 0644 $(COMPLETIONS) $(DESTDIR)$(completionsdir)
-	ln -sfv steamos-mount $(DESTDIR)$(completionsdir)/mount.steamos
+	ln -sfv holo-mount $(DESTDIR)$(completionsdir)/mount.holo
 	install -d $(DESTDIR)$(libdir)/repart.d
 	install -m 0644 $(REPART_CONFIG) $(DESTDIR)$(libdir)/repart.d
 	install -d $(DESTDIR)$(libdir)/sysctl.d/
