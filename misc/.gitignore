@@ -1,6 +1,6 @@
 bin/holo-boot-install
 bin/holo-chroot
-bin/steamos-devmode
+bin/holo-devmode
 bin/steamos-dump-info
 bin/steamos-factory-reset
 bin/steamos-factory-reset-config
