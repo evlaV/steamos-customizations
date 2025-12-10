@@ -10,14 +10,14 @@
 #  or (at your option) any later version.
 
 [Unit]
-Description=Append SteamOS info to kernel log
+Description=Append OS info to kernel log
 After=sysinit.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=true
 StandardOutput=file:/dev/kmsg
-ExecStart=@sbindir@/steamos-dump-info
+ExecStart=@sbindir@/holo-dump-info
 
 [Install]
 WantedBy=basic.target

@@ -4,6 +4,7 @@ RENAMED_BINS := \
   bin/holo-boot-install \
   bin/holo-chroot \
   bin/holo-devmode \
+  bin/holo-dump-info \
   $(EMPTY)
 
 RENAMED_LIBX := \
