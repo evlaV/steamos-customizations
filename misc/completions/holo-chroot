@@ -13,7 +13,7 @@
 #  published by the Free Software Foundation; either version 2.1 of the License,
 #  or (at your option) any later version.
 
-_steamos-chroot()
+_holo-chroot()
 {
     local cur prev words cword
     _init_completion || return
@@ -36,4 +36,4 @@ _steamos-chroot()
 
     _filedir
 } &&
-complete -F _steamos-chroot steamos-chroot
+complete -F _holo-chroot holo-chroot
