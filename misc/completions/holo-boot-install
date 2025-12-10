@@ -13,7 +13,7 @@
 #  published by the Free Software Foundation; either version 2.1 of the License,
 #  or (at your option) any later version.
 
-_steamos-boot-install()
+_holo-boot-install()
 {
     local cur prev words cword
     _init_completion || return
@@ -27,4 +27,4 @@ _steamos-boot-install()
 
     COMPREPLY=($(compgen -W "--roothash --no-bootloaders" "--no-kernel" -- "$cur"))
 } &&
-complete -F _steamos-boot-install steamos-boot-install
+complete -F _holo-boot-install holo-boot-install

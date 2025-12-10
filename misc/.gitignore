@@ -1,4 +1,4 @@
-bin/steamos-boot-install
+bin/holo-boot-install
 bin/steamos-chroot
 bin/steamos-devmode
 bin/steamos-dump-info
