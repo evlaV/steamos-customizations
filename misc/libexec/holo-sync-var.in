@@ -312,7 +312,7 @@ sync_var_mountpoints() {
         fi
     done
 
-    # Create both upper and work directory, so steamos-chroot works correctly.
+    # Create both upper and work directory, so holo-chroot works correctly.
     #
     # Work directory should be clean, since it handles temporary state, and
     # expected to be wiped on boot - see prepare_etc_overlay for details.
