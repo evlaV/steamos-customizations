@@ -28,7 +28,7 @@ PRETTY_NAME=
 # shellcheck disable=SC1091
 . /etc/os-release
 
-prefix="SteamOS System Info:"
+prefix="${PRETTY_NAME:-Holo} System Info:"
 printf "$prefix %s\n" "${PRETTY_NAME:-<\$PRETTY_NAME UNSET>}"
 
 partition="$(steamos-partition 2>/dev/null)" || partition="<couldn't invoke steamos-partition>"
