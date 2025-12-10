@@ -360,7 +360,7 @@ sync_var_mountpoints() {
     #
     # Remove the eventual gnupg keyring - the new image is RO and it makes
     # little sense to have keyring around. People will either use
-    # steamos-devmode enable - which will regenerate it for them, or if they
+    # holo-devmode enable - which will regenerate it for them, or if they
     # manually flip off the RO mode, they can issue pacman-key manually.
     rm -rf "$dst/lib/overlays/etc/upper/os-release" || :
     rm -rf "$dst/lib/overlays/etc/upper/rauc" || :
