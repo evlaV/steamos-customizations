@@ -75,8 +75,8 @@ usage() {
     echo
     echo "Usage: $(basename $0) [--disk DISK] [--no-overlay] [--allow-self] --partset A|B|self|other -- COMMAND"
     echo
-    echo "Run COMMAND in a chroot. The chroot is SteamOS specific, which means"
-    echo "that the various SteamOS partitions are mounted within the chroot."
+    echo "Run COMMAND in a chroot. The chroot is Holo specific, which means"
+    echo "that the various Holo partitions are mounted within the chroot."
     echo
     echo "By default, also the overlayed /etc will be mounted. Please note that the"
     echo "overlay can only be mounted once, so you can't re-mount the /etc overlay"
@@ -87,19 +87,19 @@ usage() {
     echo
     echo "There are two use-cases for this command:"
     echo
-    echo "1. Chroot into the 'other' SteamOS, useful for atomic update. For example:"
+    echo "1. Chroot into the 'other' Holo, useful for atomic update. For example:"
     echo
     echo "    $(basename $0) --partset other -- COMMAND"
     echo
-    echo "2. Chroot into another SteamOS install, on another disk. For example:"
+    echo "2. Chroot into another Holo install, on another disk. For example:"
     echo
     echo "    $(basename $0) --disk /dev/sdb --partset A -- COMMAND"
     echo
-    echo "The second mode works if SteamOS is installed alone on the disk, however"
+    echo "The second mode works if Holo is installed alone on the disk, however"
     echo "if there are other partitions on the disk then it's not guaranteed to work."
-    echo "This is because we rely on partition labels to find SteamOS partitions and"
+    echo "This is because we rely on partition labels to find Holo partitions and"
     echo "setup the chroot. This is too fragile, and if we're unlucky there could be"
-    echo "another partition that doesn't belong to SteamOS but uses the same partition"
+    echo "another partition that doesn't belong to Holo but uses the same partition"
     echo "label."
     echo
 
@@ -151,8 +151,8 @@ ROOTFS_DEVICE=
 
 if [ "$DISK" ]; then
     # A disk was provided, which means that we're chrooting into another
-    # SteamOS install. We do our best to 'guess' the partitions, ie. we
-    # mostly rely on partition labels. This is OK if SteamOS is alone on
+    # Holo install. We do our best to 'guess' the partitions, ie. we
+    # mostly rely on partition labels. This is OK if Holo is alone on
     # this disk, but it's fragile if it's installed along another OS.
     [ -b "$DISK" ] || fail "'$DISK' is not a block device"
     ROOTFS_DEVICE=$(get_device_by_partlabel $DISK rootfs-$PARTSET)
@@ -197,10 +197,10 @@ prepare_chroot_at() {
     if [ -z "$NO_OVERLAY" ]; then
         local dev_name=${DISK:-this}-${PARTSET}
         local dev_lock="/run/lock/${dev_name//\//-}.flock"
-        local run_steamos_chroot="/run/steamos-chroot"
-        DEV_DIR="${run_steamos_chroot}/${dev_name}"
+        local run_holo_chroot="/run/holo-chroot"
+        DEV_DIR="${run_holo_chroot}/${dev_name}"
 
-        mkdir -p "$run_steamos_chroot"
+        mkdir -p "$run_holo_chroot"
 
         # Get the shared lock to signal that other chroot instances should not unmount the /etc overlay
         exec {DEV_SHARED_LOCK_FD}>$dev_lock
@@ -262,7 +262,7 @@ cleanup_chroot_at() {
                 umount "$DEV_DIR" || :
                 rmdir "$DEV_DIR" || :
             } || {
-                log "There are other active steamos-chroot instances, do not unmount the /etc overlay"
+                log "There are other active holo-chroot instances, do not unmount the /etc overlay"
             }
             flock --unlock --close "$DEV_SHARED_LOCK_FD" || :
         fi

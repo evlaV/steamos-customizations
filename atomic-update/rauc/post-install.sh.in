@@ -238,8 +238,8 @@ umount /mnt
 log "Installing the bootloaders"
 # any newer image should have finalize-install but a downgrade may be missing it;
 # if so look for an older post-install script
-steamos-chroot --partset $UPDATED_SLOT -- steamos-finalize-install --no-kernel || \
-    steamos-chroot --partset $UPDATED_SLOT -- steamos-boot-install --no-kernel || \
+holo-chroot --partset $UPDATED_SLOT -- steamos-finalize-install --no-kernel || \
+    holo-chroot --partset $UPDATED_SLOT -- steamos-boot-install --no-kernel || \
     err "Failed to install bootloaders"
 
 # Mark the new partition valid, otherwise it will not boot
@@ -251,13 +251,13 @@ steamos-chroot --partset $UPDATED_SLOT -- steamos-finalize-install --no-kernel |
 # Additionally, record the current booted slot in a temporary file that
 # triggers the sync during shutdown (holo-post-update-shutdown.service)
 if [ $ERR == 0 ]; then
-  update_manifest=$(steamos-chroot --partset $UPDATED_SLOT -- cat "/etc/steamos-atomupd/manifest.json")
+  update_manifest=$(holo-chroot --partset $UPDATED_SLOT -- cat "/etc/steamos-atomupd/manifest.json")
   update_buildid=$(jq -r '.buildid | select(type == "string")' <<< "$update_manifest")
   update_version=$(jq -r '.version | select(type == "string")' <<< "$update_manifest")
   echo "${update_buildid}-${update_version}" > "$REBOOT_FOR_UPDATE"
   label=$(boot_label "$UPDATED_SLOT" "$update_manifest")
   if [ -n "${label:-}" ]; then
-      steamos-chroot --partset $UPDATED_SLOT -- \
+      holo-chroot --partset $UPDATED_SLOT -- \
                      steamos-bootconf config --set title "${label:-}"
   fi
 
