@@ -20,19 +20,21 @@ source @libexecdir@/steamos/steamos-shellutil.sh
 
 # a file that gets removed when the image changes that we can touch to see if this script has previously been run on
 # this install.  This is purposefully under /usr/ so it is associated with the rootfs we're modifying.
-TOUCHFILE=/usr/share/steamos/devmode-enabled
+TOUCHFILE=/usr/share/holo/devmode-enabled
 
 # Whether to suppress prompting.  Set by --no-prompt below
 NOPROMPT=0
 
+OS_LABEL=$(source /etc/os-release || :; echo ${PRETTY_NAME:-Holo})
+
 print_warning() {
   # 80 cols
   echo ""
-  echo "${sh_header_bold}SteamOS${sh_header} Developer Mode"
+  echo "${sh_header_bold}${OS_LABEL}${sh_header} Developer Mode"
   echo ""
   echo "${sh_warn}Important:${sh_highlight} This will allow potentially breaking changes to the root filesystem."
   echo "  This is meant for developers and technical users who know what they are doing."
-  echo "  Changes to the root filesystem will be overwritten by the next SteamOS update.${sh_reset}"
+  echo "  Changes to the root filesystem will be overwritten by the next ${OS_LABEL} update.${sh_reset}"
   echo ""
   echo "${sh_note_bold}Developers:${sh_note}"
   echo "  - Consider packaging your application with flatpak, rather than"
@@ -48,7 +50,7 @@ usage() {
   echo ""
 
   # 80 cols
-  echo "A helper script to enable developer mode on SteamOS"
+  echo "A helper script to enable developer mode on ${OS_LABEL}"
   echo "  - Disables read-only mode."
   echo "  - Populates the pacman keyring."
   echo ""
