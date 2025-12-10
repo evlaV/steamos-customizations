@@ -29,7 +29,7 @@ declare -a STEAMOS_BINARIES=(
     sfdisk
     sleep
     sort
-    steamos-factory-reset-config
+    holo-factory-reset-config
     tail
     tr
     tune2fs
