@@ -13,11 +13,11 @@
 #  published by the Free Software Foundation; either version 2.1 of the License,
 #  or (at your option) any later version.
 
-_steamos-factory-reset()
+_holo-factory-reset()
 {
     local cur prev words cword
     _init_completion || return
 
     COMPREPLY=($(compgen -W "-h --help" -- "$cur"))
 } &&
-complete -F _steamos-factory-reset steamos-factory-reset
+complete -F _holo-factory-reset holo-factory-reset

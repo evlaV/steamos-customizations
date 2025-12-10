@@ -16,6 +16,9 @@
 
 set -euo pipefail
 
+# shellcheck disable=SC1091
+OS_LABEL=$(source /etc/os-release || :; echo ${PRETTY_NAME:-Holo})
+
 FORCE=0 # --force
 
 usage() {
@@ -28,7 +31,7 @@ usage() {
     echo
     echo "Usage: $(basename $0) [OPTIONS]"
     echo
-    echo "Factory reset of SteamOS, wipe out the data partitions."
+    echo "Factory reset of $OS_LABEL, wipe out the data partitions."
     echo
     echo "This script records the partitions to be reset."
     echo "On reboot the initrd scrubs them and does a first-boot setup."
@@ -67,16 +70,16 @@ while [ $# -gt 0 ]; do
 done
 
 echo
-echo "You're about to perform a factory reset of your SteamOS install!"
+echo "You're about to perform a factory reset of your ${OS_LABEL} install!"
 echo
 echo "The data partitions will be erased, all your personal data will be lost."
-echo "Then the system will reboot, and you'll be back to a pristine SteamOS install."
+echo "Then the system will reboot, and you'll be back to a pristine $OS_LABEL install."
 echo
 if ! ask "Do you want to continue?"; then
     echo "Alright buddy. Come back when you feel ready."
     exit 0
 fi
 
-if steamos-factory-reset-config; then
+if holo-factory-reset-config; then
     reboot
 fi

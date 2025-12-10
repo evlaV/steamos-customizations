@@ -2,8 +2,8 @@ bin/holo-boot-install
 bin/holo-chroot
 bin/holo-devmode
 bin/holo-dump-info
-bin/steamos-factory-reset
-bin/steamos-factory-reset-config
+bin/holo-factory-reset
+bin/holo-factory-reset-config
 bin/steamos-finalize-install
 bin/holo-mount
 bin/steamos-partition
