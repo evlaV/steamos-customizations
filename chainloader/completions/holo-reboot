@@ -13,7 +13,7 @@
 #  published by the Free Software Foundation; either version 2.1 of the License,
 #  or (at your option) any later version.
 
-_steamos-reboot()
+_holo-reboot()
 {
     local cur prev words cword
     _init_completion || return
@@ -22,13 +22,13 @@ _steamos-reboot()
         --next|--reboot-to-firmware-entry)
             local IFS=$'\n'
             local entries
-            mapfile -t entries < <(steamos-reboot --list-firmware-entries)
+            mapfile -t entries < <(holo-reboot --list-firmware-entries)
             COMPREPLY=($(compgen -W "${entries[*]// /\\\\ }" -- "${cur// /\\\\ }"))
             return
             ;;
         --reboot-to-bootloader-entry)
             local entries
-            mapfile -t entries < <(steamos-reboot --list-bootloader-entries)
+            mapfile -t entries < <(holo-reboot --list-bootloader-entries)
             COMPREPLY=($(compgen -W "${entries[*]}" -- "$cur"))
             return
             ;;
@@ -44,4 +44,4 @@ _steamos-reboot()
     options+=(--reboot-to-firmware-entry --reboot-to-firmware-setup --list-firmware-entries)
     COMPREPLY=($(compgen -W "${options[*]}" -- "$cur"))
 } &&
-complete -F _steamos-reboot steamos-reboot steamos-halt steamos-poweroff
+complete -F _holo-reboot holo-reboot holo-halt holo-poweroff

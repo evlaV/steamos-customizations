@@ -22,7 +22,7 @@ usage() {
     cat <<EOF
 ${0##*/} [OPTIONS...] [ARG]
 
-Reboot SteamOS.
+Reboot Holo.
 
 Options:
      --next XXXX
@@ -47,7 +47,7 @@ Options:
      --list-bootloader-entries
                  List bootloader entries
 EOF
-    "${0##*/steamos-}" --help | sed -n '/^Options:/,//{//d;p}'
+    "${0##*/holo-}" --help | sed -n '/^Options:/,//{//d;p}'
 }
 
 prompt() {
@@ -209,4 +209,4 @@ do
     shift
 done
 
-exec "${0##*/steamos-}" "${opts[@]}"
+exec "${0##*/holo-}" "${opts[@]}"
