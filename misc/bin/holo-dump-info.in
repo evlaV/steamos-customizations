@@ -31,7 +31,7 @@ PRETTY_NAME=
 prefix="${PRETTY_NAME:-Holo} System Info:"
 printf "$prefix %s\n" "${PRETTY_NAME:-<\$PRETTY_NAME UNSET>}"
 
-partition="$(steamos-partition 2>/dev/null)" || partition="<couldn't invoke steamos-partition>"
+partition="$(holo-partition 2>/dev/null)" || partition="<couldn't invoke holo-partition>"
 printf "$prefix %s\n" "$partition"
 
 echo "$prefix Serial Numbers:"
