@@ -7,6 +7,7 @@ RENAMED_BINS := \
   bin/holo-dump-info \
   bin/holo-factory-reset \
   bin/holo-factory-reset-config \
+  bin/holo-partition \
   $(EMPTY)
 
 RENAMED_LIBX := \
