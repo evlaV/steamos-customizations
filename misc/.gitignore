@@ -7,7 +7,7 @@ bin/holo-factory-reset-config
 bin/steamos-finalize-install
 bin/holo-mount
 bin/holo-partition
-bin/steamos-partsets
+bin/holo-partsets
 bin/steamos-readonly
 bin/steamos-verity
 libexec/steamos-cfs-debugfs-settings
