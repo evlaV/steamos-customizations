@@ -8,6 +8,7 @@ RENAMED_BINS := \
   bin/holo-factory-reset \
   bin/holo-factory-reset-config \
   bin/holo-partition \
+  bin/holo-partsets \
   $(EMPTY)
 
 RENAMED_LIBX := \
