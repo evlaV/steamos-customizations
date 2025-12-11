@@ -18,6 +18,8 @@ set -euo pipefail
 
 OUTDIR=  # $1
 DEVICES= # --devices=
+# shellcheck disable=SC1091
+OS_LABEL=$(source /etc/os-release || :; echo ${PRETTY_NAME:-Holo})
 
 # Helpers
 
@@ -189,21 +191,21 @@ usage() {
     echo
     echo "Usage: $(basename $0) [--devices 'efi esp-A esp-B ...'] OUTDIR"
     echo
-    echo "In the output directory, this script creates 4 files that define the SteamOS"
+    echo "In the output directory, this script creates 4 files that define the ${OS_LABEL}"
     echo "partition definitions: all, self, other, shared."
     echo
     echo "The output directory should not exist."
     echo
     echo "This program starts off the / mountpoint, and from there it guesses the disk"
-    echo "on which SteamOS is installed, if the current root partition belongs to A or B,"
+    echo "on which ${OS_LABEL} is installed, if the current root partition belongs to A or B,"
     echo "and then which partitions belong to 'self', 'other' or 'shared'."
     echo
-    echo "It is assumed that all partitions on the disk belong to SteamOS, unless you"
+    echo "It is assumed that all partitions on the disk belong to ${OS_LABEL}, unless you"
     echo "use --devices to provide a space-separated list of partitions. In such case,"
     echo "only the partitions that belong to this list are kept."
     echo
-    echo "This program should be used during the build of a SteamOS disk image,"
-    echo "and also when SteamOS is installed to another disk. Apart from that,"
+    echo "This program should be used during the build of a ${OS_LABEL} disk image,"
+    echo "and also when ${OS_LABEL} is installed to another disk. Apart from that,"
     echo "I don't see any other use-cases."
     echo
 
@@ -249,15 +251,15 @@ case "$SELF" in
 esac
 [ "$OTHER" ] || [ "$SELF" == "dev" ] || fail "Failed to determine 'other' for self=$SELF"
 
-# Get the disk on which SteamOS lives
+# Get the disk on which Holo lives
 
 DISK=$(get_parent_device "$ROOTDEV")
 [ -b "$DISK" ] || fail "Failed to get disk for root device '$ROOTDEV'"
 
 # We know everything, let's go
 
-log "SteamOS root device: $ROOTDEV ($ROOTLABEL)"
-log "SteamOS disk       : $DISK"
+log "${OS_LABEL} root device: $ROOTDEV ($ROOTLABEL)"
+log "${OS_LABEL} disk       : $DISK"
 log "A/B/dev status     : self=$SELF, other=$OTHER"
 log "Creating partition definitions in $OUTDIR ..."
 
@@ -272,7 +274,7 @@ while read device partuuid typeuuid partlabel; do
     #
     # Well it's not that bad, as we expect caller to provide a list of
     # partitions in case there's more than one OS on the disk, and all
-    # those partitions belong to SteamOS (so we know that we set all
+    # those partitions belong to Holo (so we know that we set all
     # those fields), EXCEPT for the ESP, which is shared with other OS.
     #
     # So we identify the ESP based on the typeuuid, which means that we
@@ -280,7 +282,7 @@ while read device partuuid typeuuid partlabel; do
     # in case there's no label set.
 
     # If a device list was provided by caller, accept only those,
-    # otherwise assume all devices on the disk belong to SteamOS.
+    # otherwise assume all devices on the disk belong to Holo.
     accepted=0
     if [ -z "$DEVICES" ]; then
         accepted=1
@@ -294,12 +296,12 @@ while read device partuuid typeuuid partlabel; do
     fi
 
     if [ $accepted -eq 0 ]; then
-        log "Discarding partition '$device' ($partlabel), not part of SteamOS"
+        log "Discarding partition '$device' ($partlabel), not part of ${OS_LABEL}"
         continue
     fi
 
     # Hack for ESP, as it's the only one which doesn't belong to
-    # SteamOS, hence we can't control the name. So we identify it
+    # Holo, hence we can't control the name. So we identify it
     # using the type uuid, and pretend that the name is 'esp'.
     if [ "${typeuuid,,}" == c12a7328-f81f-11d2-ba4b-00a0c93ec93b ]; then
         partlabel=esp
