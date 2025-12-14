@@ -107,6 +107,14 @@ ATOMUPD_VARIANTS_LIST := holo;holo-beta
 # separator.
 ATOMUPD_BRANCHES_LIST := stable;rc;beta;bc;main
 
+# Semicolon separated list of branches with images that may be signed with
+# the development keys. When tracking one of these branches, atomupd-daemon
+# will automatically trust the keys stored in /etc/rauc/development_keys.
+# Please note that the only allowed symbols are lowercase and uppercase
+# word characters, numbers, underscore, hyphen and the semicolon as a
+# separator.
+ATOMUPD_DEV_BRANCHES_LIST := main;staging
+
 # Directory where RAUC will mount the update bundle
 RAUC_RUNTIME_DIR := /run/rauc
 
@@ -157,6 +165,7 @@ SDDM_AUTOLOGIN_CONF := $(sysconfdir)/sddm.conf.d/zz-steamos-autologin.conf
 	  -e 's|@atomupd_meta_url@|$(ATOMUPD_META_URL)|g' \
 	  -e 's|@atomupd_variants_list@|$(ATOMUPD_VARIANTS_LIST)|g' \
 	  -e 's|@atomupd_branches_list@|$(ATOMUPD_BRANCHES_LIST)|g' \
+	  -e 's|@atomupd_dev_branches_list@|$(ATOMUPD_DEV_BRANCHES_LIST)|g' \
 	  -e 's|@rauc_runtime_dir@|$(RAUC_RUNTIME_DIR)|g' \
 	  -e 's|@steamos_atomupd_runtime_dir@|$(STEAMOS_ATOMUPD_RUNTIME_DIR)|g' \
 	  -e 's|@reboot_for_update@|$(REBOOT_FOR_UPDATE)|g' \
