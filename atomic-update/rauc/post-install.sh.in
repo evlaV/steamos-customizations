@@ -152,50 +152,34 @@ configure_other_efi() {
 log "Detecting 'other' efi partition"
 
 declare -r BOOTED_SLOT=$(steamos-bootconf this-image)
-PRESERVED_SLOT=
 UPDATED_SLOT=
 
 log "Booted into slot $BOOTED_SLOT"
 
 case $BOOTED_SLOT in
     A)
-        PRESERVED_SLOT=A
         UPDATED_SLOT=B
-        EFI_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/other/efi)
         ;;
     B)
-        PRESERVED_SLOT=B
         UPDATED_SLOT=A
-        EFI_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/other/efi)
         ;;
     *)
-        while read valid slot x
-        do
-            case $valid$slot in
-                +A)
-                    UPDATED_SLOT=B
-                    PRESERVED_SLOT=A
-                    ;;
-                +B)
-                    UPDATED_SLOT=A
-                    PRESERVED_SLOT=B
-                    ;;
-            esac
-        done < <(steamos-bootconf list-images)
-        EFI_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$UPDATED_SLOT/efi)
+        fail "Booted Slot is neither A nor B. Bailing."
         ;;
 esac
 
 log "Update slot candidate is $UPDATED_SLOT"
 
+EFI_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/other/efi)
+
 log "Configuring the 'other' efi partition $EFI_DEVICE_OTHER " \
-    "($PRESERVED_SLOT -> $UPDATED_SLOT)"
+    "($BOOTED_SLOT -> $UPDATED_SLOT)"
 
 [ -b "$EFI_DEVICE_OTHER" ] || \
     fail "Other efi device '$EFI_DEVICE_OTHER' not found"
 
 mount "$EFI_DEVICE_OTHER" /mnt
-configure_other_efi /mnt $PRESERVED_SLOT $UPDATED_SLOT || \
+configure_other_efi /mnt $BOOTED_SLOT $UPDATED_SLOT || \
     err "Failed to configure the 'other' efi"
 umount /mnt
 
