@@ -27,7 +27,7 @@ SYSUSERS := $(wildcard sysusers/*)
 UNITS := $(SERVICES) $(MOUNTS)
 CLEANABLE := $(BINARIES) $(LIBRARIES_EXEC) $(UNITS)
 
--include renamed.mk
+-include ./renamed.mk
 
 .PHONY: all aliases install binary-aliases libexec-aliases
 
