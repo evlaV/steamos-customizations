@@ -16,11 +16,13 @@
 
 set -euo pipefail
 
+OS_LABEL=$(source /etc/os-release || :; echo ${PRETTY_NAME:-Holo})
+
 usage() {
     cat <<EOF
 Usage: ${0##*/} enable|disable|status
 
-Enable or disable read-only on the current running SteamOS.
+Enable or disable read-only on the current running ${OS_LABEL}.
 EOF
 }
 

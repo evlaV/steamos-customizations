@@ -13,7 +13,7 @@
 #  published by the Free Software Foundation; either version 2.1 of the License,
 #  or (at your option) any later version.
 
-_steamos-readonly()
+_holo-readonly()
 {
     local cur prev words cword
     _init_completion || return
@@ -21,11 +21,11 @@ _steamos-readonly()
     local args
     _count_args
     if [[ "$args" -eq 1 ]]; then
-        if steamos-readonly status >/dev/null 2>&1; then
+        if holo-readonly status >/dev/null 2>&1; then
             COMPREPLY=($(compgen -W "disable toggle status" -- "$cur"))
         else
             COMPREPLY=($(compgen -W "enable toggle status" -- "$cur"))
         fi
     fi
 } &&
-complete -F _steamos-readonly steamos-readonly
+complete -F _holo-readonly holo-readonly
