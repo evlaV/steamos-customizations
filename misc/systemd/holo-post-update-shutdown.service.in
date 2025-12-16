@@ -13,7 +13,7 @@
 Description=Run tasks on shutdown after an OS update
 DefaultDependencies=no
 Before=shutdown.target
-ConditionPathExists=/run/holo-booted-slot-sync-trigger
+ConditionPathExists=@holo_booted_slot_sync_trigger@
 
 [Service]
 Type=oneshot
