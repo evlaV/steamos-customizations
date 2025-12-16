@@ -67,6 +67,15 @@ warn() { echo >&2 "Warning:" "$@"; }
 err () { echo >&2 "Error:" "$@"; ERR=1; }
 fail() { echo >&2 "Error:" "$@"; exit 1; }
 
+# Make sure we have other mounted, otherwise bail
+if ! mountpoint -q /mnt; then
+    fail "/mnt is not mounted. Bailing."
+fi
+
+if ! mountpoint -q /mnt/var; then
+    fail "/mnt/var is not mounted. Bailing."
+fi
+
 # Check which operations we are doing, otherwise print usage
 SYNCTYPE=
 
@@ -79,7 +88,10 @@ case $1 in
         ;;
 esac
 
-declare -r BOOTED_SLOT=$(steamos-bootconf this-image)
+declare BOOTED_SLOT=$(steamos-bootconf this-image)
+if [ -z "$BOOTED_SLOT" ]; then
+    BOOTED_SLOT=$(cat /run/holo-booted-slot-sync-trigger)
+fi
 UPDATED_SLOT=
 
 log "Booted into slot $BOOTED_SLOT"

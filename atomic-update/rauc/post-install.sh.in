@@ -26,6 +26,8 @@ ROOTHASH_RELPATH=@roothash_relpath@
 RAUC_RUNTIME_DIR=@rauc_runtime_dir@
 REBOOT_FOR_UPDATE=@reboot_for_update@
 
+HOLO_BOOTED_SLOT_SYNC_TRIGGER=/run/holo-booted-slot-sync-trigger
+
 OWD="$(dirname "$(readlink -f "$0")")"
 
 #
@@ -34,8 +36,8 @@ OWD="$(dirname "$(readlink -f "$0")")"
 
 log () { echo >&2 "$@"; }
 warn() { echo >&2 "Warning:" "$@"; }
-err () { echo >&2 "Error:" "$@"; ERR=1; }
-fail() { echo >&2 "Error:" "$@"; exit 1; }
+err () { echo >&2 "Error:" "$@"; rm -f $HOLO_BOOTED_SLOT_SYNC_TRIGGER; ERR=1; }
+fail() { echo >&2 "Error:" "$@"; rm -f $HOLO_BOOTED_SLOT_SYNC_TRIGGER; exit 1; }
 
 
 #
@@ -133,6 +135,11 @@ declare -r BOOTED_SLOT=$(steamos-bootconf this-image)
 UPDATED_SLOT=
 
 log "Booted into slot $BOOTED_SLOT"
+# Record the current booted slot in a temporary file that
+# triggers the sync during shutdown (holo-post-update-shutdown.service)
+if ! echo "$BOOTED_SLOT" > $HOLO_BOOTED_SLOT_SYNC_TRIGGER; then
+    warn "Failed to record booted slot"
+fi
 
 case $BOOTED_SLOT in
     A)
@@ -258,4 +265,7 @@ if [ $ERR == 0 ]; then
   fi
 fi
 
+if [[ $ERR != 0 ]]; then
+    rm -f $HOLO_BOOTED_SLOT_SYNC_TRIGGER
+fi
 exit $ERR
