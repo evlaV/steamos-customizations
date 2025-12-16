@@ -8,7 +8,7 @@ bin/steamos-finalize-install
 bin/holo-mount
 bin/holo-partition
 bin/holo-partsets
-bin/steamos-readonly
+bin/holo-readonly
 bin/steamos-verity
 libexec/steamos-cfs-debugfs-settings
 libexec/steamos-create-homedir
