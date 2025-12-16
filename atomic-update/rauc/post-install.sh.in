@@ -217,7 +217,7 @@ mount "$VAR_DEVICE_OTHER" /mnt/var
 
 # Sync /var partitions, including the /etc mountpoint, from the current image
 #
-/usr/lib/steamos/holo-sync-var || \
+/usr/lib/steamos/holo-sync-var all || \
     err "Failed to sync var partitions"
 
 # Remove the old rootfs index to ensure that we either have the correct one
