@@ -13,6 +13,21 @@
 #  modify it under the terms of the GNU Lesser General Public License as
 #  published by the Free Software Foundation; either version 2.1 of the License,
 #  or (at your option) any later version.
+#
+#  The purpose of holo-sync-var is to sync changes from the self install
+#  to an updated install, either with or without creating backups. Backups are
+#  created the first time we run with "all" option from rauc post-install.sh
+#  but not during shutdown when any other minor changes are synced with "catchup"
+#  option.
+#
+#  Usage:
+#  holo-sync-var <all|catchup>
+#
+#  holo-sync-var all - Syncs changes from self /var, including the /etc overlay, to
+#    the other partition. Generating also a backup of the /etc files
+#
+#  holo-sync-var catchup - Same as `all`, but without doing any of the backup steps.
+#
 
 set -e
 set -u
@@ -51,6 +66,18 @@ log () { echo >&2 "$@"; }
 warn() { echo >&2 "Warning:" "$@"; }
 err () { echo >&2 "Error:" "$@"; ERR=1; }
 fail() { echo >&2 "Error:" "$@"; exit 1; }
+
+# Check which operations we are doing, otherwise print usage
+SYNCTYPE=
+
+case $1 in
+    all|catchup)
+        SYNCTYPE=$1
+        ;;
+    *)
+        fail "Sync type must be specified, either all or catchup"
+        ;;
+esac
 
 declare -r BOOTED_SLOT=$(steamos-bootconf this-image)
 UPDATED_SLOT=
@@ -329,13 +356,17 @@ VAR_FROM=/var
 fsfreeze -f "$VAR_FROM"
 sync_var_mountpoints "$VAR_FROM" /mnt/var /mnt/etc || \
     err "Failed to sync var partitions"
-if [ $ERR == 0 ]; then
-    keep_previous_etc_copy "$VAR_FROM" /mnt/var || \
-        warn "Failed to copy the /etc changes to /etc/previous"
 
-    backup_etc_changes "$VAR_FROM" /mnt/var || \
-        warn "Failed to create an /etc backup"
+if [ $SYNCTYPE == "all" ]; then
+    if [ $ERR == 0 ]; then
+        keep_previous_etc_copy "$VAR_FROM" /mnt/var || \
+            warn "Failed to copy the /etc changes to /etc/previous"
+
+        backup_etc_changes "$VAR_FROM" /mnt/var || \
+            warn "Failed to create an /etc backup"
+    fi
 fi
+
 fsfreeze -u "$VAR_FROM"
 
 exit $ERR
