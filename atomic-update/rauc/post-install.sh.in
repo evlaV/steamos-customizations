@@ -36,8 +36,8 @@ OWD="$(dirname "$(readlink -f "$0")")"
 
 log () { echo >&2 "$@"; }
 warn() { echo >&2 "Warning:" "$@"; }
-err () { echo >&2 "Error:" "$@"; rm -f $HOLO_BOOTED_SLOT_SYNC_TRIGGER; ERR=1; }
-fail() { echo >&2 "Error:" "$@"; rm -f $HOLO_BOOTED_SLOT_SYNC_TRIGGER; exit 1; }
+err () { echo >&2 "Error:" "$@"; ERR=1; }
+fail() { echo >&2 "Error:" "$@"; exit 1; }
 
 
 #
@@ -135,11 +135,6 @@ declare -r BOOTED_SLOT=$(steamos-bootconf this-image)
 UPDATED_SLOT=
 
 log "Booted into slot $BOOTED_SLOT"
-# Record the current booted slot in a temporary file that
-# triggers the sync during shutdown (holo-post-update-shutdown.service)
-if ! echo "$BOOTED_SLOT" > "$HOLO_BOOTED_SLOT_SYNC_TRIGGER"; then
-    warn "Failed to record booted slot"
-fi
 
 case $BOOTED_SLOT in
     A)
@@ -253,6 +248,8 @@ steamos-chroot --partset $UPDATED_SLOT -- steamos-finalize-install --no-kernel |
 
 # Store the installed update version in a temporary file to record that we
 # have a pending reboot to switch to the new image
+# Additionally, record the current booted slot in a temporary file that
+# triggers the sync during shutdown (holo-post-update-shutdown.service)
 if [ $ERR == 0 ]; then
   update_manifest=$(steamos-chroot --partset $UPDATED_SLOT -- cat "/etc/steamos-atomupd/manifest.json")
   update_buildid=$(jq -r '.buildid | select(type == "string")' <<< "$update_manifest")
@@ -263,9 +260,9 @@ if [ $ERR == 0 ]; then
       steamos-chroot --partset $UPDATED_SLOT -- \
                      steamos-bootconf config --set title "${label:-}"
   fi
+
+  echo "$BOOTED_SLOT" > "$HOLO_BOOTED_SLOT_SYNC_TRIGGER" || \
+    warn "Failed to record booted slot"
 fi
 
-if [[ $ERR != 0 ]]; then
-    rm -f $HOLO_BOOTED_SLOT_SYNC_TRIGGER
-fi
 exit $ERR
