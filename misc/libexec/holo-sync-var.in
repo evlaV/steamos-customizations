@@ -235,6 +235,12 @@ sync_var_mountpoints() {
     local upper_dir="${etc_overlay_in_var}/upper"
     local config
 
+    # If we are not going to take new backups, we preserve the existing $ETC_BACKUP_DIR
+    # in the destination, by explicitly excluding it from the delete operation
+    if [ $SYNCTYPE == "catchup" ]; then
+        RSYNC_VAR_EXTRA_OPTS="--exclude=${ETC_BACKUP_DIR#"/var"}"
+    fi
+
     # We exclude the directories /var/lib/{dkms,modules,pacman}, as they don't
     # really represent a state that we want to keep, but rather a part of the
     # rootfs that ends up leaving in /var for technical reasons. These pieces
@@ -261,6 +267,7 @@ sync_var_mountpoints() {
         --exclude="/lib/NetworkManager/" \
         --exclude="/lost+found/" \
         --exclude="${etc_overlay_in_var}" \
+        ${RSYNC_VAR_EXTRA_OPTS:-} \
         "$src/" "$dst/"; then
 
         warn "rsync failed to sync \"$src\" to \"$dst\""
@@ -276,6 +283,12 @@ sync_var_mountpoints() {
     # Remove the leading "/etc" because we are syncing those files from
     # the overlayfs and not directly from "/etc".
     sed 's#^/etc##' "${RAUC_LIBDIR}/${ATOMIC_UPDATE_KEEP_CONF}" >> "${config}"
+
+    # If we are not going to take new backups, we preserve the existing /etc/previous
+    # in the destination, by explicitly excluding it from the delete operation
+    if [ $SYNCTYPE == "catchup" ]; then
+        RSYNC_ETC_EXTRA_OPTS="--exclude=/previous"
+    fi
 
     # Apart from the default config file, we also include all the eventual
     # user defined configuration files
@@ -312,6 +325,7 @@ sync_var_mountpoints() {
         --checksum \
         --prune-empty-dirs \
         --compare-dest="${lower_dir}" \
+        ${RSYNC_ETC_EXTRA_OPTS:-} \
         --include="*/" \
         --include-from="${config}" \
         --exclude="*" \
