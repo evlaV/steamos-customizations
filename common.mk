@@ -117,6 +117,10 @@ STEAMOS_ATOMUPD_RUNTIME_DIR := /run/steamos-atomupd
 # record that we have a pending reboot to switch to the new image.
 REBOOT_FOR_UPDATE := $(STEAMOS_ATOMUPD_RUNTIME_DIR)/reboot_for_update
 
+# File that holds the currently booted slot and is used to trigger
+# a /var sync at shutdown, after applying an update
+HOLO_BOOTED_SLOT_SYNC_TRIGGER := $(STEAMOS_ATOMUPD_RUNTIME_DIR)/holo-booted-slot-sync-trigger
+
 # Drop-in directory where users can list additional "/etc" files and
 # directories that they want to preserve across updates
 ATOMIC_UPDATE_CONF_D := $(sysconfdir)/atomic-update.conf.d
@@ -163,6 +167,7 @@ SDDM_AUTOLOGIN_CONF := $(sysconfdir)/sddm.conf.d/zz-steamos-autologin.conf
 	  -e 's|@rauc_runtime_dir@|$(RAUC_RUNTIME_DIR)|g' \
 	  -e 's|@steamos_atomupd_runtime_dir@|$(STEAMOS_ATOMUPD_RUNTIME_DIR)|g' \
 	  -e 's|@reboot_for_update@|$(REBOOT_FOR_UPDATE)|g' \
+	  -e 's|@holo_booted_slot_sync_trigger@|$(HOLO_BOOTED_SLOT_SYNC_TRIGGER)|g' \
 	  -e 's|@atomic_update_conf_d@|$(ATOMIC_UPDATE_CONF_D)|g' \
 	  -e 's|@rauc_libdir@|$(RAUC_LIBDIR)|g' \
 	  -e 's|@etc_backup_dir@|$(ETC_BACKUP_DIR)|g' \

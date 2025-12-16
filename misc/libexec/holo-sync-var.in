@@ -41,6 +41,7 @@ ATOMIC_UPDATE_CONF_D=@atomic_update_conf_d@
 RAUC_LIBDIR=@rauc_libdir@
 
 ATOMIC_UPDATE_KEEP_CONF="atomic-update-keep.conf"
+HOLO_BOOTED_SLOT_SYNC_TRIGGER=@holo_booted_slot_sync_trigger@
 
 #
 # Final cleanup before exiting
@@ -90,7 +91,7 @@ esac
 
 declare BOOTED_SLOT=$(steamos-bootconf this-image)
 if [ -z "$BOOTED_SLOT" ]; then
-    BOOTED_SLOT=$(cat /run/holo-booted-slot-sync-trigger)
+    BOOTED_SLOT=$(cat ${HOLO_BOOTED_SLOT_SYNC_TRIGGER})
 fi
 UPDATED_SLOT=
 

@@ -26,7 +26,7 @@ ROOTHASH_RELPATH=@roothash_relpath@
 RAUC_RUNTIME_DIR=@rauc_runtime_dir@
 REBOOT_FOR_UPDATE=@reboot_for_update@
 
-HOLO_BOOTED_SLOT_SYNC_TRIGGER=/run/holo-booted-slot-sync-trigger
+HOLO_BOOTED_SLOT_SYNC_TRIGGER=@holo_booted_slot_sync_trigger@
 
 OWD="$(dirname "$(readlink -f "$0")")"
 
@@ -137,7 +137,7 @@ UPDATED_SLOT=
 log "Booted into slot $BOOTED_SLOT"
 # Record the current booted slot in a temporary file that
 # triggers the sync during shutdown (holo-post-update-shutdown.service)
-if ! echo "$BOOTED_SLOT" > $HOLO_BOOTED_SLOT_SYNC_TRIGGER; then
+if ! echo "$BOOTED_SLOT" > "$HOLO_BOOTED_SLOT_SYNC_TRIGGER"; then
     warn "Failed to record booted slot"
 fi
 

@@ -17,12 +17,13 @@
 # See holo-post-update-shutdown.service for details.
 
 SYMLINKS_DIR=@udev_symlinks_absdir@
+HOLO_BOOTED_SLOT_SYNC_TRIGGER=@holo_booted_slot_sync_trigger@
 
 warn() { echo >&2 "Warning:" "$@"; }
 fail() { echo >&2 "Error:" "$@"; exit 1; }
 
 # Mount the other rootfs and var partitions to sync
-declare -r BOOTED_SLOT=$(cat /run/holo-booted-slot-sync-trigger)
+declare -r BOOTED_SLOT=$(cat ${HOLO_BOOTED_SLOT_SYNC_TRIGGER})
 UPDATED_SLOT=
 
 case $BOOTED_SLOT in
