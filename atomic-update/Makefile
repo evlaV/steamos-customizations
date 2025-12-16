@@ -1,7 +1,6 @@
 include ../common.mk
 
 ATOMIC_UPDATE_CONF_D_DIR := $(notdir $(ATOMIC_UPDATE_CONF_D))
-BINARIES := $(wildcard bin/*)
 COMPLETIONS := $(wildcard completions/*)
 CONF_D_EXAMPLE_IN := rauc/example-additional-keep-list.conf.in
 CONF_D_EXAMPLE := $(patsubst %.in,%,$(CONF_D_EXAMPLE_IN))
@@ -24,10 +23,6 @@ CLEANABLE := $(CONF_D_EXAMPLE) $(KEEP_CONFIG) $(RAUC_CONFIG) $(RAUC_FALLBACK_CON
 all: $(CONF_D_EXAMPLE) $(KEEP_CONFIG) $(RAUC_CONFIG) $(RAUC_FALLBACK_CONFIG) $(RAUC_HOOKS) $(SERVICES_OVERRIDE) $(TMPFILES) $(STEAMOS_ATOMUPD_CONFIG)
 
 install: all
-	install -d $(DESTDIR)$(sbindir)
-	install -m 0755 $(BINARIES) $(DESTDIR)$(sbindir)
-	install -d $(DESTDIR)$(completionsdir)
-	install -m 0644 $(COMPLETIONS) $(DESTDIR)$(completionsdir)
 	install -d $(DESTDIR)$(sysconfdir)/rauc
 	install -m 0644 $(RAUC_CONFIG) $(RAUC_FALLBACK_CONFIG) $(DESTDIR)$(sysconfdir)/rauc
 	install -d $(DESTDIR)$(sysconfdir)/rauc/trusted_keys
