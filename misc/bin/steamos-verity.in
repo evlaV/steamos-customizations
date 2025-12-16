@@ -33,7 +33,7 @@ mapper_root_mounted() {
 }
 
 read_write() {
-    steamos-readonly disable
+    holo-readonly disable
 
     if mapper_root_mounted
     then
@@ -55,7 +55,7 @@ read_only() {
 
     local block_size=$(blkid -o value -s BLOCK_SIZE "$ROOTDEV")
 
-    steamos-readonly enable
+    holo-readonly enable
 
     veritysetup format --data-block-size "$block_size" --hash-block-size "$block_size" \
         "$ROOTDEV" "$VERITYDEV" | \
@@ -75,7 +75,7 @@ status() {
         device_is_readonly=yes
     fi
 
-    if steamos-readonly status >/dev/null
+    if holo-readonly status >/dev/null
     then
         filesystem_is_readonly=yes
     fi
@@ -118,7 +118,7 @@ verify() {
     veritysetup verify "$ROOTDEV" "$VERITYDEV" "$(cat $HASHFILE)"
 }
 
-# Ideally status will be root-free, alas steamos-readonly status
+# Ideally status will be root-free, alas holo-readonly status
 # does not like that.
 if [[ "$(id -u)" -ne 0 ]]; then
     echo "$(basename $0) needs to be run as root"

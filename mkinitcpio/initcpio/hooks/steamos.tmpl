@@ -91,7 +91,7 @@ run_hook() {
     #
     # We used to mount the rootfs without an explicit RO/RW flag.
     # This was required for the ext234 rootfs to work properly. In particular
-    # during steamos-readonly we set the tune2fs RO flag, which is the
+    # during holo-readonly we set the tune2fs RO flag, which is the
     # default state used by mount whenever there is no explicit RO/RW passed.
     #
     # That caused systemd to try to remount the rootfs (after the root pivot)
@@ -103,14 +103,14 @@ run_hook() {
     # mkinitcpio explicitly passes the RO/RW flag at mount (default RO).
     # If we leave RO in the fstab the tune2fs RO flag is ignored and the
     # ext234 rootfs will always be RO requiring a manual remount on
-    # every boot even when 'steamos-readonly disable' has been used.
+    # every boot even when 'holo-readonly disable' has been used.
     #
     # On the btrfs front, the situation is worse. One needs to remount RW
-    # manually even to toggle back to steamos-readonly enable.
+    # manually even to toggle back to holo-readonly enable.
     #
     # As a sane-ish default we opt for RW here. This means that for
     # ext234 the RO tune2fs state will be invalid but both fs will
-    # just work correctly with 'steamos-readonly'.
+    # just work correctly with 'holo-readonly'.
     #
     # shellcheck disable=SC2034 # used by init_functions:default_mount_handler()
     rwopt=rw
