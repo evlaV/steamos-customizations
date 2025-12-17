@@ -13,7 +13,7 @@
 #  published by the Free Software Foundation; either version 2.1 of the License,
 #  or (at your option) any later version.
 
-_steamos-verity()
+_holo-verity()
 {
     local cur prev words cword
     _init_completion || return
@@ -21,11 +21,11 @@ _steamos-verity()
     local args
     _count_args
     if [[ "$args" -eq 1 ]]; then
-        if steamos-verity status >/dev/null 2>&1; then
+        if holo-verity status >/dev/null 2>&1; then
             COMPREPLY=($(compgen -W "disable status check" -- "$cur"))
         else
             COMPREPLY=($(compgen -W "enable status check" -- "$cur"))
         fi
     fi
 } &&
-complete -F _steamos-verity steamos-verity
+complete -F _holo-verity holo-verity

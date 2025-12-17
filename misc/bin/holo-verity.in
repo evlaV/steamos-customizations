@@ -19,12 +19,13 @@ set -euo pipefail
 declare -r ROOTDEV=@udev_symlinks_absdir@/self/rootfs
 declare -r VERITYDEV=@udev_symlinks_absdir@/self/verity
 declare -r HASHFILE=/efi/@roothash_relpath@
+declare -r OS_LABEL=$(source /etc/os-release || :; echo ${PRETTY_NAME:-Holo})
 
 usage() {
     cat <<EOF
 Usage: ${0##*/} enable|disable|status|verify
 
-Enable or disable the block level verification on the current running SteamOS.
+Enable or disable the block level verification on the current running $OS_LABEL.
 EOF
 }
 
