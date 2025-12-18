@@ -24,14 +24,15 @@ DEVMODE_PACKAGES=(base-devel multilib-devel)
 NOCONFIRM=0
 
 usage() {
+  OS_LABEL=$(source /etc/os-release || :; echo ${PRETTY_NAME:-Holo})
   echo "Usage: ${0##*/} [--dev] [--noconfirm] [directory [directory ...]]"
   echo ""
   echo "Scans for packages with missing files and reinstalls them.  Can be used to undo"
-  echo "the minimization that occurs at SteamOS image building time, installing missing"
+  echo "the minimization that occurs at $OS_LABEL image building time, installing missing"
   echo "files such as man pages and includes."
   echo ""
   echo "With directory argument(s), will only scan/reinstall packages with affected"
-  echo "files in the given paths.  E.g. \`steamos-unminimize /usr/include\`."
+  echo "files in the given paths.  E.g. \`holo-unminimize /usr/include\`."
   echo ""
   echo "This is largely a wrapper around \`pacman -Qk\`."
   echo ""

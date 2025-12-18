@@ -61,7 +61,7 @@ usage() {
   echo "\"holo-readonly enable\" command.  This does not undo changes performed"
   echo "while in dev mode."
   echo ""
-  echo "See also \`steamos-unminimize\`"
+  echo "See also \`holo-unminimize\`"
 }
 
 enable_devmode() {
@@ -96,7 +96,7 @@ enable_devmode() {
   out ""
 
   estat "Developer mode enabled"
-  einfo "  See also \`steamos-unminimize --dev\` to recover package files pruned"
+  einfo "  See also \`holo-unminimize --dev\` to recover package files pruned"
   einfo "  from the image and install development packages."
 
   touch "$TOUCHFILE"

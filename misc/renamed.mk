@@ -11,6 +11,7 @@ RENAMED_BINS := \
   bin/holo-partsets \
   bin/holo-readonly \
   bin/holo-verity \
+  bin/holo-unminimize \
   $(EMPTY)
 
 RENAMED_LIBX := \
