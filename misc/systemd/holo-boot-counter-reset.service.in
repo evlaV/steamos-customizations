@@ -8,18 +8,13 @@
 #  or (at your option) any later version.
 
 [Unit]
-Description=SteamOS Boot Registration
-After=graphical.target
-Requisite=graphical.target
-RefuseManualStart=yes
-ConditionPathExists=/efi/SteamOS
-RequiresMountsFor=/efi/SteamOS
-Before=shutdown.target
+Description=Reset boot counter after resuming from hibernation
+After=systemd-hibernate-clear.service
+Wants=systemd-hibernate-clear.service
 
 [Service]
 Type=oneshot
-RemainAfterExit=yes
-ExecStart=@bindir@/steamos-bootconf set-mode booted
+ExecStart=/usr/bin/holo-bootconf --set boot-attempts 0
 
 [Install]
-WantedBy=graphical.target
+WantedBy=systemd-hibernate-clear.service
