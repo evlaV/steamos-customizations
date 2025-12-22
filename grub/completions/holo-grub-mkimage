@@ -13,7 +13,7 @@
 #  published by the Free Software Foundation; either version 2.1 of the License,
 #  or (at your option) any later version.
 
-_steamos-grub-mkimage()
+_holo-grub-mkimage()
 {
     local cur prev words cword
     _init_completion || return
@@ -35,4 +35,4 @@ _steamos-grub-mkimage()
 
     COMPREPLY=($(compgen -W "-h --help -O --format -o --output -p --prefix" -- "$cur"))
 } &&
-complete -F _steamos-grub-mkimage steamos-grub-mkimage
+complete -F _holo-grub-mkimage holo-grub-mkimage
