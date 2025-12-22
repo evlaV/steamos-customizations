@@ -37,10 +37,10 @@ usage() {
     echo
     echo "Usage: $(basename $0) OPTIONS"
     echo
-    echo "Generate a GRUB image suitable for SteamOS, and install it to $DEFAULT_OUTPUT."
+    echo "Generate a GRUB image suitable for Holo, and install it to $DEFAULT_OUTPUT."
     echo
-    echo "For SteamOS purpose, this script should be run without any arguments,"
-    echo "and it will do the right things (TM)."
+    echo "For Holo purposes, this script should be run without any arguments,"
+    echo "and it will do the Right Things™."
     echo
     echo "This script also supports a subset of grub-mkimage arguments, so that it"
     echo "can be called by grub-install. If you're not grub-install, you shouldn't"
@@ -48,7 +48,7 @@ usage() {
     echo
     echo "The content of this image embeds the UUIDs of the root and the var"
     echo "filesystems, so it's tied to the current OS. If you want to generate a"
-    echo "config for another set of SteamOS partitions, make sure to use a chroot."
+    echo "config for another set of Holo partitions, make sure to use a chroot."
     echo
 
     exit $status
@@ -131,8 +131,8 @@ MEMDISK=grub-memdisk.tar
 MODULES=(search search_fs_uuid ext2 btrfs fat part_gpt configfile test echo sleep)
 
 prefix=${PREFIX:-} \
-@libexecdir@/steamos/steamos-grub-mkearlyconfig > grub.cfg
-if [ "${STEAMOS_DEBUG:-}" ]; then
+@libexecdir@/steamos/holo-grub-mkearlyconfig > grub.cfg
+if [ "${STEAMOS_DEBUG:-}${HOLO_DEBUG:-}" ]; then
     MODULES+=(read)
     cat - grub.cfg << EOF >&2
 
@@ -148,7 +148,7 @@ BOOTSTRAP_CONFIG=grub-bootstrap.cfg
 MODULES+=(normal memdisk tar)
 
 echo 'normal (memdisk)/grub.cfg' > $BOOTSTRAP_CONFIG
-if [ "${STEAMOS_DEBUG:-}" ]; then
+if [ "${STEAMOS_DEBUG:-}${HOLO_DEBUG:-}" ]; then
     cat - $BOOTSTRAP_CONFIG << EOF >&2
 
 Using bootstrap grub.cfg
@@ -160,7 +160,7 @@ fi
 
 mkdir -p "$(dirname $OUTPUT)"
 
-if [ "${STEAMOS_DEBUG:-}" ]; then
+if [ "${STEAMOS_DEBUG:-}${HOLO_DEBUG:-}" ]; then
     cat << EOF >&2
 
 Creating image using command

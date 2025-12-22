@@ -32,18 +32,18 @@ usage() {
     echo
     echo "Usage: $(basename $0)"
     echo
-    echo "Generate the GRUB early config for SteamOS. The purpose of this early config"
+    echo "Generate the GRUB early config for Holo. The purpose of this early config"
     echo "is to find the *real* GRUB config, as it's stored in a non-standard location."
     echo
     echo "The content of this early config embeds the UUIDs of the root and the var"
     echo "filesystems, so it's tied to the current OS. If you want to generate a"
-    echo "config for another set of SteamOS partitions, make sure to use a chroot."
+    echo "config for another set of Holo partitions, make sure to use a chroot."
     echo
     echo "This early config is meant to be embedded in a memdisk, and additionally you"
     echo "must instruct GRUB lo load this memdisk using an even *earlier* config (the"
     echo "so-called bootstrap config), that you pass to grub-mkimage through --config=."
     echo
-    echo "If the environment \$STEAMOS_DEBUG is set, the early config that is generated"
+    echo "If the environment \$HOLO_DEBUG is set, the early config that is generated"
     echo "produces additional outputs and a delay."
     echo
 
@@ -72,7 +72,7 @@ VARUUID=$(findmnt -no uuid /var || true)
 
 # Generate the grub early config
 
-if [ -n "${STEAMOS_DEBUG:-}" ]; then
+if [ -n "${STEAMOS_DEBUG:-}${HOLO_DEBUG:-}" ]; then
     cat << EOF
 echo "---- Entering early config ----"
 echo "cmdpath: \$cmdpath"
@@ -124,7 +124,7 @@ else
 fi
 EOF
 
-if [ -n "${STEAMOS_DEBUG:-}" ]; then
+if [ -n "${STEAMOS_DEBUG:-}${HOLO_DEBUG:-}" ]; then
     cat << EOF
 echo "---- Leaving early config ----"
 echo "root   : \$root"

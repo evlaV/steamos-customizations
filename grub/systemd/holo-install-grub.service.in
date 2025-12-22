@@ -8,7 +8,7 @@
 #  or (at your option) any later version.
 
 [Unit]
-Description=SteamOS GRUB2 Installation
+Description=Holo GRUB2 Installation
 DefaultDependencies=no
 Wants=efi.mount
 After=local-fs.target efi.mount
