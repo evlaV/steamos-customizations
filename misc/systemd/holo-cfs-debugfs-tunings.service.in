@@ -16,7 +16,7 @@ After=sysinit.target
 [Service]
 Type=oneshot
 RemainAfterExit=true
-ExecStart=@libexecdir@/steamos/steamos-cfs-debugfs-settings
+ExecStart=@libexecdir@/steamos/holo-cfs-debugfs-settings
 
 [Install]
 WantedBy=multi-user.target

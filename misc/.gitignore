@@ -11,11 +11,11 @@ bin/holo-partsets
 bin/holo-readonly
 bin/holo-verity
 bin/holo-unminimize
-libexec/steamos-cfs-debugfs-settings
+libexec/holo-cfs-debugfs-settings
 libexec/steamos-create-homedir
 libexec/steamos-finish-oobe-migration
 systemd/etc.mount
-systemd/steamos-cfs-debugfs-tunings.service
+systemd/holo-cfs-debugfs-tunings.service
 systemd/steamos-create-homedir.service
 systemd/holo-dump-info.service
 systemd/steamos-finish-oobe-migration.service
