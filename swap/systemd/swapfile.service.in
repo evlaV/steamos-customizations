@@ -10,6 +10,7 @@
 [Unit]
 Description=Create Swap File
 DefaultDependencies=no
+After=systemd-growfs@home.service
 Before=shutdown.target home-swapfile.swap
 Conflicts=shutdown.target
 ConditionFileIsExecutable=@sbindir@/mkswap
