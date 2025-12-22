@@ -14,7 +14,7 @@ Description=Finish migration from OOBE build
 After=sysinit.target
 # We don't want anything that will start user sessions to happen before we fix the /home/ folder
 Before=multi-user.target
-Before=steamos-create-homedir.service
+Before=holo-create-homedir.service steamos-create-homedir.service
 ConditionPathIsDirectory=/home/doorstop
 ConditionPathIsSymbolicLink=!/home/doorstop
 

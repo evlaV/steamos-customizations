@@ -41,10 +41,12 @@ then
     exit 0
 fi
 
+LOGO=$(source /etc/os-release || :; echo ${LOGO:-holo})
+
 echo "Creating homedir $homedir for UID $uid"
 install -d -m 700 "$homedir"
 find /etc/skel -maxdepth 1 -mindepth 1 -exec cp -vPax {} "$homedir" \;
-cp -vPax @datadir@/pixmaps/steamos.png "$homedir/.face.icon"
+cp -vPax @datadir@/pixmaps/"$LOGO".png "$homedir/.face.icon"
 install -d -m755 "$homedir/Desktop"
 for i in @datadir@/applications/steam.desktop @datadir@/applications/steamos-install{,-devel}.desktop
 do

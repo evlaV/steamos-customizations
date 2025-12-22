@@ -12,10 +12,10 @@ bin/holo-readonly
 bin/holo-verity
 bin/holo-unminimize
 libexec/holo-cfs-debugfs-settings
-libexec/steamos-create-homedir
+libexec/holo-create-homedir
 libexec/steamos-finish-oobe-migration
 systemd/etc.mount
 systemd/holo-cfs-debugfs-tunings.service
-systemd/steamos-create-homedir.service
+systemd/holo-create-homedir.service
 systemd/holo-dump-info.service
 systemd/steamos-finish-oobe-migration.service
