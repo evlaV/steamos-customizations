@@ -8,7 +8,7 @@
 #  or (at your option) any later version.
 
 [Unit]
-Description=SteamOS Boot Registration
+Description=Holo Boot Registration
 After=graphical.target
 Requisite=graphical.target
 RefuseManualStart=yes
@@ -19,7 +19,7 @@ Before=shutdown.target
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=@bindir@/steamos-bootconf set-mode booted
+ExecStart=@bindir@/holo-bootconf set-mode booted
 
 [Install]
 WantedBy=graphical.target
