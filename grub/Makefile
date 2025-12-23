@@ -26,8 +26,8 @@ aliases: $(filter $(RENAMED_LIBX),$(LIBRARIES_EXEC))
 install: all aliases
 	install -d $(DESTDIR)$(sbindir)
 	install -m 0755 $(BINARIES) $(DESTDIR)$(sbindir)
-	install -d $(DESTDIR)$(libdir)/steamos
-	install -m 0755 $(LIBRARIES_EXEC) $(DESTDIR)$(libdir)/steamos
+	install -d $(DESTDIR)$(libdir)/holo
+	install -m 0755 $(LIBRARIES_EXEC) $(DESTDIR)$(libdir)/holo
 	install -d $(DESTDIR)$(sysconfdir)/grub.d
 	install -m 0755 $(GRUB_SCRIPTS) $(DESTDIR)$(sysconfdir)/grub.d
 	install -d $(DESTDIR)$(completionsdir)
