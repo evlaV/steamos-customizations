@@ -29,7 +29,7 @@ set_current_image ()
         return
     fi
 
-    name=$(steamos-bootconf this-image)
+    name=$(holo-bootconf this-image)
     case $name in
         A|B|dev)
             true
@@ -43,7 +43,7 @@ set_current_image ()
                         name=$slot
                     ;;
                 esac
-            done < <(steamos-bootconf list-images)
+            done < <(holo-bootconf list-images)
             ;;
     esac
 
@@ -68,14 +68,14 @@ set_target_image ()
 
 ensure_exists()
 {
-    steamos-bootconf config --image "${1}" || steamos-bootconf create --image "${1}" ||:
+    holo-bootconf config --image "${1}" || holo-bootconf create --image "${1}" ||:
 }
 
 case ${1:-} in
 get-primary)
     set_current_image
 
-    image=$(steamos-bootconf selected-image)
+    image=$(holo-bootconf selected-image)
 
     if [ "$image" = dev ]
     then
@@ -96,7 +96,7 @@ get-primary)
 set-primary)
     set_target_image "${2:-}"
     ensure_exists "${target_image}"
-    steamos-bootconf --image "$target_image" set-mode reboot
+    holo-bootconf --image "$target_image" set-mode reboot
     ;;
 
 get-state)
@@ -111,7 +111,7 @@ get-state)
             boot-attempts:) tries=$val; ;;
             image-invalid:) invalid=$val; ;;
         esac
-    done < <(steamos-bootconf --image "$target_image" \
+    done < <(holo-bootconf --image "$target_image" \
                               config --get boot-attempts --get image-invalid)
 
     # If we retrieved no data:
@@ -138,13 +138,13 @@ set-state)
     case ${3:-} in
         good)
             # clears boot-other and update, sets boot-requested-at
-            steamos-bootconf --image "$target_image" set-mode reboot \
+            holo-bootconf --image "$target_image" set-mode reboot \
                              --set image-invalid 0
             ;;
         bad)
             boot_to=
             # clears update, sets boot-other and boot-requested-at
-            steamos-bootconf --image "$target_image" set-mode reboot-other \
+            holo-bootconf --image "$target_image" set-mode reboot-other \
                              --set image-invalid 1
 
             ;;
