@@ -41,19 +41,28 @@ binary-aliases: EXTRA_LINKS := mount.holo
 binary-aliases: IDIR := $(DESTDIR)$(sbindir)
 binary-aliases: $(filter $(RENAMED_BINS),$(BINARIES))
 
-binary-aliases libexec-aliases:
+oldlibx-aliases: EXTRA_LINKS := 
+oldlibx-aliases: IDIR := $(DESTDIR)$(libexecdir)/steamos
+oldlibx-aliases: $(filter $(RENAMED_LIBX),$(LIBRARIES_EXEC))
+
+binary-aliases libexec-aliases oldlibx-aliases:
 	@install -d $(DESTDIR)$(sbindir)
+	@install -d $(IDIR)
 	@(for X in $(^F) $(EXTRA_LINKS); \
 	  do ln -svf $(ALIAS) $(IDIR)/$${X//holo/steamos}; done)
 
 aliases: binary-aliases libexec-aliases
 
+install: STEAMOS_LIBEXEC := $(filter libexec/steamos-%,$(LIBRARIES_EXEC))
+install: HOLO_LIBEXEC := $(filter libexec/holo-%,$(LIBRARIES_EXEC))
 install: all aliases
 	install -d $(DESTDIR)$(sbindir)
 	install -m 0755 $(BINARIES) $(DESTDIR)$(sbindir)
 	ln -sfv holo-mount $(DESTDIR)$(sbindir)/mount.holo
+	install -d $(DESTDIR)$(libexecdir)/holo
+	install -m 0755 $(HOLO_LIBEXEC) $(DESTDIR)$(libexecdir)/holo
 	install -d $(DESTDIR)$(libexecdir)/steamos
-	install -m 0755 $(LIBRARIES_EXEC) $(DESTDIR)$(libexecdir)/steamos
+	install -m 0755 $(STEAMOS_LIBEXEC) $(DESTDIR)$(libexecdir)/steamos
 	install -d $(DESTDIR)$(completionsdir)
 	install -m 0644 $(COMPLETIONS) $(DESTDIR)$(completionsdir)
 	ln -sfv holo-mount $(DESTDIR)$(completionsdir)/mount.holo
