@@ -8,7 +8,7 @@
 #  or (at your option) any later version.
 
 [Unit]
-Description=SteamOS Chainloader Installation
+Description=Holo Chainloader Installation
 DefaultDependencies=no
 Wants=esp.mount
 After=local-fs.target esp.mount
