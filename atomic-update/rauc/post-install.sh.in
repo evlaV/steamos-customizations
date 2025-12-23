@@ -119,7 +119,7 @@ configure_other_efi() {
     if ! [ -e "$bootconf" ]; then
         log "Initializing 'other' esp bootconf: '$bootconf'"
         mkdir -p "$confdir"
-        steamos-bootconf create --conf-dir "$confdir" --image "$ident" --set title "$ident"
+        holo-bootconf create --conf-dir "$confdir" --image "$ident" --set title "$ident"
     fi
 
     roothash=$efi/$ROOTHASH_RELPATH
@@ -131,7 +131,7 @@ configure_other_efi() {
 
 log "Detecting 'other' efi partition"
 
-declare -r BOOTED_SLOT=$(steamos-bootconf this-image)
+declare -r BOOTED_SLOT=$(holo-bootconf this-image)
 UPDATED_SLOT=
 
 log "Booted into slot $BOOTED_SLOT"
@@ -244,7 +244,7 @@ holo-chroot --partset $UPDATED_SLOT -- steamos-finalize-install --no-kernel || \
 
 # Mark the new partition valid, otherwise it will not boot
 # (note; you can't call rauc status mark-good here)
-(( ERR == 0 )) && steamos-bootconf --image $UPDATED_SLOT set-mode reboot
+(( ERR == 0 )) && holo-bootconf --image $UPDATED_SLOT set-mode reboot
 
 # Store the installed update version in a temporary file to record that we
 # have a pending reboot to switch to the new image
@@ -258,7 +258,7 @@ if [ $ERR == 0 ]; then
   label=$(boot_label "$UPDATED_SLOT" "$update_manifest")
   if [ -n "${label:-}" ]; then
       holo-chroot --partset $UPDATED_SLOT -- \
-                     steamos-bootconf config --set title "${label:-}"
+                     holo-bootconf config --set title "${label:-}"
   fi
 
   echo "$BOOTED_SLOT" > "$HOLO_BOOTED_SLOT_SYNC_TRIGGER" || \

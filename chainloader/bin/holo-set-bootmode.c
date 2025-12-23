@@ -23,7 +23,7 @@
 #include <sys/types.h>
 
 // ============================================================================
-// This setuid wrapper exposes a limited subset of steamos-bootconf's
+// This setuid wrapper exposes a limited subset of holo-bootconf's
 // functionality to unprivileged callers: specifically the set-mode
 // actions used to configure the well-known boot requests such as:
 // reboot reboot-other (for example). This allows things like
@@ -39,7 +39,7 @@ static char *const allowed_mode[] = {
 static int set_mode (const char *const self, char *const mode)
 {
     char *const argv[] = {
-        BINDIR "/steamos-bootconf",
+        BINDIR "/holo-bootconf",
         "set-mode",
         mode,
         NULL
@@ -54,7 +54,7 @@ static int set_mode (const char *const self, char *const mode)
 
     execv(argv[0], argv);
     e = errno;
-    perror( "could not execute 'steamos-bootconf'" );
+    perror( "could not execute 'holo-bootconf'" );
     return e;
 }
 

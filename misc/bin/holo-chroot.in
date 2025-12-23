@@ -169,7 +169,7 @@ else
     # using the existing symlinks.
 
     if [ -z "$ALLOW_SELF" ]; then
-        BOOTED_SLOT=$(steamos-bootconf this-image)
+        BOOTED_SLOT=$(holo-bootconf this-image)
         if [ "$PARTSET" == "self" ] || [ "$PARTSET" == "$BOOTED_SLOT" ]; then
             fail "Error: Partset '$PARTSET' is currently booted. If this is intentional, please use '--no-overlay --allow-self'"
         fi

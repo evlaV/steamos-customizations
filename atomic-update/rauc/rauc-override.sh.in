@@ -1,6 +1,6 @@
 #!/bin/bash
 
-this_image=$(steamos-bootconf this-image)
+this_image=$(holo-bootconf this-image)
 
 if [ "${STEAMOS_CUSTOM_RAUC_CONF-}" ]; then
     exec /usr/bin/rauc --mount=@rauc_runtime_dir@ --override-boot-slot="$this_image" --conf="${STEAMOS_CUSTOM_RAUC_CONF}" service
