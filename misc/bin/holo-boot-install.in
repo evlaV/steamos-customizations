@@ -15,4 +15,4 @@
 #  or (at your option) any later version.
 
 # This is a simple wrapper that provides backwards compatibility to the renamed steamos-finalize-install
-source "${BASH_SOURCE%/*}"/steamos-finalize-install "$@";
+source "${BASH_SOURCE%/*}"/holo-finalize-install "$@";
