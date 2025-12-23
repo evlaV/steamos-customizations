@@ -18,8 +18,8 @@
 ###
 ###   Usage:
 ###     set -euo pipefail
-###     # shellcheck source=../libexec/steamos-shellutil.sh
-###     source /usr/lib/steamos/steamos-shellutil.sh
+###     # shellcheck source=@libexecdir@/holo-shellutil.sh
+###     source @libexecdir@/steamos-shellutil.sh
 ###
 ###   Unless otherwise noted, this library expects:
 ###    - Bash version 5.1+

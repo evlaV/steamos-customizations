@@ -21,7 +21,7 @@ ConditionPathIsSymbolicLink=!/home/doorstop
 [Service]
 Type=oneshot
 RemainAfterExit=true
-ExecStart=@libexecdir@/steamos/steamos-finish-oobe-migration
+ExecStart=@libexecdir@/holo/steamos-finish-oobe-migration
 
 [Install]
 WantedBy=basic.target
