@@ -7,4 +7,4 @@ rauc/rauc-override.sh
 rauc/system.conf
 steamos-atomupd/client.conf
 systemd/rauc.service.d/override.conf
-tmpfiles.d/steamos-atomupd.conf
+tmpfiles.d/holo-atomupd.conf
