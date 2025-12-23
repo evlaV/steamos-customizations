@@ -17,7 +17,7 @@
 set -e
 
 exec @libdir@/grub/grub-install \
-  --grub-mkimage @libexecdir@/steamos/holo-grub-mkimage \
+  --grub-mkimage @libexecdir@/holo/holo-grub-mkimage \
   --efi-directory /efi \
   --no-nvram \
   "$@"

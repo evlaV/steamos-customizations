@@ -16,4 +16,8 @@ RENAMED_BINS := \
   $(EMPTY)
 
 RENAMED_LIBX := \
+  libexec/holo-cfs-debugfs-settings \
+  libexec/holo-create-homedir \
+  libexec/holo-post-update \
+  libexec/holo-set-autologin-session \
   $(EMPTY)

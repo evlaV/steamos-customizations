@@ -3,7 +3,7 @@
 set -euo pipefail
 
 # shellcheck source=../libexec/steamos-shellutil.sh.in
-source @libexecdir@/steamos/steamos-shellutil.sh
+source @libexecdir@/holo/steamos-shellutil.sh
 
 # Currently only the Legion Go Series BIOS/System Firmware is handled.
 # We may loosen this to any system-firmware level updates in the future.

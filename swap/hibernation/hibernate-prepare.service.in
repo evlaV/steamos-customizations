@@ -16,7 +16,7 @@ Before=hibernate.target
 
 [Service]
 Type=oneshot
-ExecStart=@libexecdir@/steamos/hibernate-swap-helper.sh create
+ExecStart=@libexecdir@/holo/hibernate-swap-helper.sh create
 
 [Install]
 WantedBy=hibernate.target

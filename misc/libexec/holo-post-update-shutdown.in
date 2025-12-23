@@ -44,7 +44,7 @@ mount -o ro "$ROOTFS_DEVICE_OTHER" /mnt
 mount "$VAR_DEVICE_OTHER" /mnt/var
 
 # Use sync preserved script to grab any changes made after post-install.sh ran.
-/usr/lib/steamos/holo-sync-var catchup || \
+/usr/lib/holo/holo-sync-var catchup || \
     warn "Failed to sync the var partitions before shutdown"
 
 umount /mnt/var

@@ -17,7 +17,7 @@ ConditionPathExists=@holo_booted_slot_sync_trigger@
 
 [Service]
 Type=oneshot
-ExecStart=@libexecdir@/steamos/holo-post-update-shutdown
+ExecStart=@libexecdir@/holo/holo-post-update-shutdown
 
 [Install]
 WantedBy=shutdown.target
