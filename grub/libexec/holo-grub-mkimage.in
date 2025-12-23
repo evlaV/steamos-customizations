@@ -131,7 +131,7 @@ MEMDISK=grub-memdisk.tar
 MODULES=(search search_fs_uuid ext2 btrfs fat part_gpt configfile test echo sleep)
 
 prefix=${PREFIX:-} \
-@libexecdir@/steamos/holo-grub-mkearlyconfig > grub.cfg
+@libexecdir@/holo/holo-grub-mkearlyconfig > grub.cfg
 if [ "${STEAMOS_DEBUG:-}${HOLO_DEBUG:-}" ]; then
     MODULES+=(read)
     cat - grub.cfg << EOF >&2
