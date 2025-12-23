@@ -4,7 +4,7 @@ bin/holo-devmode
 bin/holo-dump-info
 bin/holo-factory-reset
 bin/holo-factory-reset-config
-bin/steamos-finalize-install
+bin/holo-finalize-install
 bin/holo-mount
 bin/holo-partition
 bin/holo-partsets

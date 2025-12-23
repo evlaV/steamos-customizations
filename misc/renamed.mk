@@ -12,6 +12,7 @@ RENAMED_BINS := \
   bin/holo-readonly \
   bin/holo-verity \
   bin/holo-unminimize \
+  bin/holo-finalize-install \
   $(EMPTY)
 
 RENAMED_LIBX := \
