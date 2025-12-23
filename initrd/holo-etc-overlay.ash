@@ -1,4 +1,4 @@
-# Mount the etc overlay for steamos atomic
+# Mount the etc overlay for holo atomic
 #
 # Mount the /etc overlay now (that is, in the initrd), which is needed for
 # systemd to successfully commit a generated machine-id on the very first

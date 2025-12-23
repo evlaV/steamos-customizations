@@ -16,8 +16,8 @@
 
 NEWROOT=/new_root
 
-# these are set by steamos_parse_cmdline based on the kernel cmdline:
-steamos_efi=
+# these are set by holo_parse_cmdline based on the kernel cmdline:
+holo_efi=
 holo_factory_reset=0
 
 emergency_shell() {
@@ -45,7 +45,7 @@ to_integer() {
 
 # mkinitcpio doesn't have a convenient kernel command line getarg
 # helper so we process all the arguments we care about in one place:
-steamos_parse_cmdline() {
+holo_parse_cmdline() {
     local key=$1 value=$2
 
     case $key in
@@ -56,7 +56,7 @@ steamos_parse_cmdline() {
             holo_factory_reset=$(to_integer "$value")
             ;;
         rd.steamos.efi|steamos.efi)
-            steamos_efi="$value"
+            holo_efi="$value"
             msg "EFI partition from kernel cmdline is \"$steamos_efi\""
             ;;
     esac
@@ -64,7 +64,7 @@ steamos_parse_cmdline() {
 
 ############################################################################
 
-@STEAMOS_UDEV_RULES@
+@HOLO_UDEV_RULES@
 
 ############################################################################
 
@@ -72,9 +72,9 @@ run_hook() {
     # This hook runs _before_ the real rootfs is mounted
     local rdev
 
-    parse_cmdline steamos_parse_cmdline </proc/cmdline
+    parse_cmdline holo_parse_cmdline </proc/cmdline
 
-    steamos_setup_partsets "$steamos_efi"
+    holo_setup_partsets "$holo_efi"
 
     rdev=/dev/@udev_symlinks_reldir@/self/rootfs
     msg "Waiting for root device $rdev"
@@ -122,15 +122,15 @@ run_hook() {
 
 ############################################################################
 
-@STEAMOS_VAR@
+@HOLO_VAR@
 
 ############################################################################
 
-@STEAMOS_ETC_OVERLAY@
+@HOLO_ETC_OVERLAY@
 
 ############################################################################
 
-@STEAMOS_VAR_LIB@
+@HOLO_VAR_LIB@
 
 ############################################################################
 
