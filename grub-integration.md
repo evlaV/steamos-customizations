@@ -14,7 +14,7 @@ Components
 Note that these scripts also do other things. We are concerned here only
 with how they interact with grub:
    
- * misc/bin/steamos-finalize-install
+ * misc/bin/holo-finalize-install
    * different mode (obsolete?) if /boot is a mount point
    * grub/libexec/holo-grub-mkimage (as grub-mkimage)
    * grub/bin/update-grub
