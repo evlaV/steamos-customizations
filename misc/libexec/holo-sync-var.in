@@ -89,7 +89,7 @@ case $1 in
         ;;
 esac
 
-declare BOOTED_SLOT=$(steamos-bootconf this-image)
+declare BOOTED_SLOT=$(holo-bootconf this-image)
 if [ -z "$BOOTED_SLOT" ]; then
     BOOTED_SLOT=$(cat ${HOLO_BOOTED_SLOT_SYNC_TRIGGER})
 fi
