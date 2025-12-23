@@ -4,7 +4,7 @@
 # initializing is to use systemd-tmpfiles, and indeed it's how it's done.
 # However it doesn't run early enough to initialize /var/lib/modules in time.
 #
-# For the record, SteamOS has a custom layout for kernel modules things,
+# For the record, Holo has a custom layout for kernel modules things,
 # due to the requirement to have DKMS working with a read-only rootfs,
 # so we end up having kernel module things in /var rather than /usr.
 # The kernel modules must be available super early at boot, earlier than

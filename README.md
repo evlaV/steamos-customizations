@@ -1,4 +1,4 @@
-SteamOS Customizations
+Holo Customizations
 ======================
 
 You everyday commands:

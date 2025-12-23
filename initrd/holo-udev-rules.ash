@@ -42,7 +42,7 @@ EOF
     done < "$1"
 }
 
-steamos_generate_partsets() {
+holo_generate_partsets() {
     local dev=$1
 
     @INFO@ "Mounting $dev on /mnt"
@@ -60,7 +60,7 @@ steamos_generate_partsets() {
         @INFO@ "Generating udev rules from $partset"
 
         # must be after 60-persistent-storage.rules
-        udev_rules "$partset" > "/run/udev/rules.d/90-steamos-partsets-${partset##*/}.rules"
+        udev_rules "$partset" > "/run/udev/rules.d/90-holo-partsets-${partset##*/}.rules"
     done
     umount /mnt
 
@@ -72,7 +72,7 @@ steamos_generate_partsets() {
     udevadm settle
 }
 
-steamos_setup_partsets() {
+holo_setup_partsets() {
     local efi_dev
 
     @INFO@ "Scanning for EFI partition"
@@ -87,5 +87,5 @@ steamos_setup_partsets() {
     @INFO@ "Waiting for $efi_dev"
     @WAIT_FOR_DEV@ "$efi_dev"
 
-    steamos_generate_partsets "$efi_dev"
+    holo_generate_partsets "$efi_dev"
 }
