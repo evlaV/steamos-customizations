@@ -2,7 +2,7 @@ include ../common.mk
 
 BINARIES_IN := $(wildcard bin/*.in)
 BINARIES := $(patsubst %.in,%,$(BINARIES_IN))
-# This setuid wrapper exposes a limited subset of steamos-bootconf's
+# This setuid wrapper exposes a limited subset of holo-bootconf's
 # functionality to unprivileged callers: specifically the set-mode
 # actions used to configure the well-known boot requests such as:
 # reboot reboot-other update (for example). This allows things like
