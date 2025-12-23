@@ -8,7 +8,7 @@
 #  or (at your option) any later version.
 
 [Unit]
-Description=SteamOS Offload - /srv
+Description=Holo Offload - /srv
 
 [Mount]
 What=@offload_absdir@/srv
@@ -17,4 +17,4 @@ Type=none
 Options=bind
 
 [Install]
-WantedBy=steamos-offload.target
+WantedBy=holo-offload.target
