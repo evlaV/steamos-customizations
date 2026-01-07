@@ -60,8 +60,16 @@ build() {
         virtio_scsi
     )
 
+    # Some modules for non-Steam Deck installations of SteamOS, mostly on Intel.
+    declare -a NONDECK_MODULES=(
+        spi-intel
+        spi-intel-pci
+        vmd
+    )
+
     map add_module "${DECK_MODULES[@]}"
     map add_module "${QEMU_MODULES[@]}"
+    map add_module "${NONDECK_MODULES[@]}"
 
     # Also to the cache, otherwise add_checked_module_modules will add
     # everything, including stuff we don't need.
@@ -69,6 +77,9 @@ build() {
         _autodetect_cache["$m"]=1
     done
     for m in "${QEMU_MODULES[@]}"; do
+        _autodetect_cache["$m"]=1
+    done
+    for m in "${NONDECK_MODULES[@]}"; do
         _autodetect_cache["$m"]=1
     done
 }
