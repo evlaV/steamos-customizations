@@ -29,7 +29,7 @@ CLEANABLE := $(BINARIES) $(LIBRARIES_EXEC) $(UNITS)
 
 -include ./renamed.mk
 
-.PHONY: all aliases install binary-aliases libexec-aliases
+.PHONY: all aliases install binary-aliases libexec-aliases oldlibx-aliases
 
 all: $(BINARIES) $(LIBRARIES_EXEC) $(UNITS)
 
@@ -43,15 +43,21 @@ binary-aliases: $(filter $(RENAMED_BINS),$(BINARIES))
 
 oldlibx-aliases: EXTRA_LINKS := 
 oldlibx-aliases: IDIR := $(DESTDIR)$(libexecdir)/steamos
-oldlibx-aliases: $(filter $(RENAMED_LIBX),$(LIBRARIES_EXEC))
+oldlibx-aliases: libexec/holo-shellutil.sh
 
-binary-aliases libexec-aliases oldlibx-aliases:
+binary-aliases libexec-aliases:
 	@install -d $(DESTDIR)$(sbindir)
 	@install -d $(IDIR)
 	@(for X in $(^F) $(EXTRA_LINKS); \
 	  do ln -svf $(ALIAS) $(IDIR)/$${X//holo/steamos}; done)
 
-aliases: binary-aliases libexec-aliases
+# this is for non executables (eg libraries) that can't go via holo-alias:
+oldlibx-aliases:
+	@install -d $(IDIR)
+	@(for X in $(^F) $(EXTRA_LINKS); \
+	  do ln -svf /usr/lib/holo/$$X $(IDIR)/$${X//holo/steamos}; done)
+
+aliases: binary-aliases libexec-aliases oldlibx-aliases
 
 install: STEAMOS_LIBEXEC := $(filter libexec/steamos-%,$(LIBRARIES_EXEC))
 install: HOLO_LIBEXEC := $(filter libexec/holo-%,$(LIBRARIES_EXEC))
