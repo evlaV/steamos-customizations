@@ -19,7 +19,7 @@
 ###   Usage:
 ###     set -euo pipefail
 ###     # shellcheck source=@libexecdir@/holo-shellutil.sh
-###     source @libexecdir@/steamos-shellutil.sh
+###     source @libexecdir@/holo-shellutil.sh
 ###
 ###   Unless otherwise noted, this library expects:
 ###    - Bash version 5.1+
