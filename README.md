@@ -1,4 +1,4 @@
-SteamOS Customizations
+Holo Customizations
 ======================
 
 You everyday commands:
@@ -28,13 +28,11 @@ Content
 
  * atomic-update: Configuration and tools to perform Atomic Updates using rauc
  * chainloader: Boot configuration
- * dracut: dracut script and configurations to mount the rootfs
  * mkinitcpio: initrd configuration which handles fs mounting, overlays, etc
  * grub: GRUB2 bootloader tools and services
  * misc: Set of features
  * offload: Set of mount targets for read-write partitions
  * plymouth: Script to show logging messages on boot screen
- * settings-importer: First-boot settings importer
  * swap: Configuration to create the swap file at startup and use it afterwards
 
 

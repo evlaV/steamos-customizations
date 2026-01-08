@@ -7,12 +7,12 @@ LIBRARIES_EXEC := $(patsubst %.in,%,$(LIBRARIES_EXEC_IN))
 COMPLETIONS := $(wildcard completions/*)
 REPART_CONFIG := $(wildcard repart.d/*.conf)
 SYSCTL_CONFIG := $(wildcard sysctl.d/*.conf)
-SDDM_CONFIG := sddm.conf.d/steamos.conf
+SDDM_CONFIG := sddm.conf.d/holo.conf
 LODIND_CONFIG := $(wildcard journald.conf.d/*.conf)
 SLEEP_CONFIG := $(wildcard sleep.conf.d/*.conf)
 SLEEP_SCRIPTS := $(wildcard system-sleep/*)
-PROFILE_CONFIG := profile.d/steamos.sh
-XORG_CONFIG := xorg.conf.d/10-steamos-virtualdisplaysize.conf
+PROFILE_CONFIG := profile.d/holo.sh
+XORG_CONFIG := xorg.conf.d/10-holo-virtualdisplaysize.conf
 PROTON_LIMITS_CONFIG := limits.d/15-proton-nice.conf
 SYSTEMD_LOGIND_CONFIG := systemd-logind.service.d/homedir-override.conf
 MODULES_LOAD_CONFIG := $(wildcard modules-load.d/*.conf)
@@ -27,17 +27,51 @@ SYSUSERS := $(wildcard sysusers/*)
 UNITS := $(SERVICES) $(MOUNTS)
 CLEANABLE := $(BINARIES) $(LIBRARIES_EXEC) $(UNITS)
 
+-include ./renamed.mk
+
+.PHONY: all aliases install binary-aliases libexec-aliases oldlibx-aliases
+
 all: $(BINARIES) $(LIBRARIES_EXEC) $(UNITS)
 
-install: all
+libexec-aliases: EXTRA_LINKS := 
+libexec-aliases: IDIR := $(DESTDIR)$(libexecdir)/steamos
+libexec-aliases: $(filter $(RENAMED_LIBX),$(LIBRARIES_EXEC))
+
+binary-aliases: EXTRA_LINKS := mount.holo
+binary-aliases: IDIR := $(DESTDIR)$(sbindir)
+binary-aliases: $(filter $(RENAMED_BINS),$(BINARIES))
+
+oldlibx-aliases: EXTRA_LINKS := 
+oldlibx-aliases: IDIR := $(DESTDIR)$(libexecdir)/steamos
+oldlibx-aliases: libexec/holo-shellutil.sh
+
+binary-aliases libexec-aliases:
+	@install -d $(DESTDIR)$(sbindir)
+	@install -d $(IDIR)
+	@(for X in $(^F) $(EXTRA_LINKS); \
+	  do ln -svf $(ALIAS) $(IDIR)/$${X//holo/steamos}; done)
+
+# this is for non executables (eg libraries) that can't go via holo-alias:
+oldlibx-aliases:
+	@install -d $(IDIR)
+	@(for X in $(^F) $(EXTRA_LINKS); \
+	  do ln -svf /usr/lib/holo/$$X $(IDIR)/$${X//holo/steamos}; done)
+
+aliases: binary-aliases libexec-aliases oldlibx-aliases
+
+install: STEAMOS_LIBEXEC := $(filter libexec/steamos-%,$(LIBRARIES_EXEC))
+install: HOLO_LIBEXEC := $(filter libexec/holo-%,$(LIBRARIES_EXEC))
+install: all aliases
 	install -d $(DESTDIR)$(sbindir)
 	install -m 0755 $(BINARIES) $(DESTDIR)$(sbindir)
-	ln -sfv steamos-mount $(DESTDIR)$(sbindir)/mount.steamos
+	ln -sfv holo-mount $(DESTDIR)$(sbindir)/mount.holo
+	install -d $(DESTDIR)$(libexecdir)/holo
+	install -m 0755 $(HOLO_LIBEXEC) $(DESTDIR)$(libexecdir)/holo
 	install -d $(DESTDIR)$(libexecdir)/steamos
-	install -m 0755 $(LIBRARIES_EXEC) $(DESTDIR)$(libexecdir)/steamos
+	install -m 0755 $(STEAMOS_LIBEXEC) $(DESTDIR)$(libexecdir)/steamos
 	install -d $(DESTDIR)$(completionsdir)
 	install -m 0644 $(COMPLETIONS) $(DESTDIR)$(completionsdir)
-	ln -sfv steamos-mount $(DESTDIR)$(completionsdir)/mount.steamos
+	ln -sfv holo-mount $(DESTDIR)$(completionsdir)/mount.holo
 	install -d $(DESTDIR)$(libdir)/repart.d
 	install -m 0644 $(REPART_CONFIG) $(DESTDIR)$(libdir)/repart.d
 	install -d $(DESTDIR)$(libdir)/sysctl.d/

@@ -19,7 +19,6 @@ SUBDIRS :=		\
 	NetworkManager	\
 	offload		\
 	plymouth	\
-	settings-importer \
 	swap
 
 ALL_TARGETS     := $(patsubst %,all-%,$(SUBDIRS))
