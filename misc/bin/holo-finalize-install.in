@@ -160,6 +160,7 @@ function cleanup_atomupd_conf
     # This could be problematic for atomupd, because older configurations could miss new
     # required fields.
     # Force the removal of the eventual user edited `client.conf`.
+    rm -f "/var/lib/overlays/etc/upper/holo-atomupd/client.conf"
     rm -f "/var/lib/overlays/etc/upper/steamos-atomupd/client.conf"
 }
 
