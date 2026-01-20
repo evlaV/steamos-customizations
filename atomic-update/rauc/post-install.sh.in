@@ -56,7 +56,7 @@ fi
 rm -f $ACTIVE_TIMERS
 
 #
-# Take a slot and the json from steamos-atomupd/manifest.json and make
+# Take a slot and the json from holo-atomupd/manifest.json and make
 # a suitable boot menu label, falling back to something generic
 #
 
@@ -265,7 +265,7 @@ fi
 # Additionally, record the current booted slot in a temporary file that
 # triggers the sync during shutdown (holo-post-update-shutdown.service)
 if [ $ERR == 0 ]; then
-  update_manifest=$(holo-chroot --partset $UPDATED_SLOT -- cat "/etc/steamos-atomupd/manifest.json")
+  update_manifest=$(holo-chroot --partset $UPDATED_SLOT -- cat "/etc/holo-atomupd/manifest.json")
   update_buildid=$(jq -r '.buildid | select(type == "string")' <<< "$update_manifest")
   update_version=$(jq -r '.version | select(type == "string")' <<< "$update_manifest")
   echo "${update_buildid}-${update_version}" > "$REBOOT_FOR_UPDATE"
