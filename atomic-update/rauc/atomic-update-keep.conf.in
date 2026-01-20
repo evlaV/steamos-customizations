@@ -30,7 +30,7 @@
 /etc/wireguard/*.conf
 
 ## Preferences for the system updates, e.g. which branch to follow
-/etc/steamos-atomupd/preferences.conf
+/etc/holo-atomupd/preferences.conf
 
 ## Systemd enabled/disabled/masked services, sockets and mount units
 /etc/systemd/system/*.requires/**
