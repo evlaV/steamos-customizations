@@ -133,7 +133,7 @@ RAUC_LIBDIR := $(libdir)/rauc/
 
 # When applying an update, this is the directory where the edited /etc files
 # will be backed up
-ETC_BACKUP_DIR := /var/lib/steamos-atomupd/etc_backup
+ETC_BACKUP_DIR := /var/lib/holo-atomupd/etc_backup
 
 # Custom SDDM configuration file to set the default autologin session
 SDDM_AUTOLOGIN_CONF := $(sysconfdir)/sddm.conf.d/zz-steamos-autologin.conf

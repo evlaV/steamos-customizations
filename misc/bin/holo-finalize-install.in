@@ -217,11 +217,29 @@ fi
 
 if in_chroot
 then
+    declare -r old_atomd=/var/lib/steamos-atomupd
+    declare -r new_atomd=/var/lib/holo-atomupd
     # Trigger steamos-post-update.service on the next boot.
-    # The directory `/var/lib/steamos-atomupd` should have been created by post-install.sh already,
-    # but if the starting image is too old, that could not be the case.
-    mkdir -p /var/lib/steamos-atomupd || \
-        echo "Warning: Failed to create the directory /var/lib/steamos-atomupd" >&2
-    touch /var/lib/steamos-atomupd/system-updated || \
-        echo "Warning: Failed to create the trigger file /var/lib/steamos-atomupd/system-updated. steamos-post-update.service may not run on first boot." >&2
+    # The directory `/var/lib/holo-atomupd` should have been created by post-install.sh
+    # already, and a symlink from steamos-atomupd created for compatibilty.
+    # Make sure this is the case:
+    if [ ! -d "$new_atomd" ]
+    then
+        if [ ! -L "$old_atomd" ] && [ -d "$old_atomd" ]
+        then
+            mv "$old_atomd" "$new_atomd" || \
+                echo "Warning: Failed to move $old_atomd to $new_atomd" >&2
+        else
+            mkdir -p "$new_atomd" || \
+                echo "Warning: Failed to create the directory $new_atomd" >&2
+        fi
+    fi
+    if [ ! -L "$old_atomd" ]
+    then
+        ln -sf $(basename "$new_atomd") "$old_atomd" || \
+            echo "Warning: failed to create link from $old_atomd to $new_atomd" >&2
+    fi
+
+    touch "$new_atomd"/system-updated || \
+        echo "Warning: Failed to create the trigger file $new_atomd/system-updated. steamos-post-update.service may not run on first boot." >&2
 fi

@@ -224,9 +224,23 @@ mount "$VAR_DEVICE_OTHER" /mnt/var
 
 # Remove the old rootfs index to ensure that we either have the correct one
 # or that we don't have it at all.
-rm -f /mnt/var/lib/steamos-atomupd/rootfs.caibx
-mkdir -p /mnt/var/lib/steamos-atomupd
-cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/var/lib/steamos-atomupd/rootfs.caibx || \
+old_varlib_d=var/lib/steamos-atomupd
+new_varlib_d=var/lib/holo-atomupd
+rm -f /mnt/$old_varlib_d/rootfs.caibx
+rm -f /mnt/$new_varlib_d/rootfs.caibx
+
+if [ ! -d /mnt/$new_varlib_d ]
+then
+    if [ -d /mnt/$old_varlib_d ] && [ ! -L /mnt/$old_varlib_d ]
+    then
+        mv /mnt/$old_varlib_d /mnt/$new_varlib_d
+    else
+        mkdir -p /mnt/$new_varlib_d
+    fi
+    ln -sf /$new_varlib_d /mnt/$old_varlib_d
+fi
+
+cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/$new_varlib_d/rootfs.caibx || \
     warn "Failed to copy the rootfs seed index file"
 umount /mnt/var
 umount /mnt
