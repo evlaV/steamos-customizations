@@ -37,6 +37,7 @@ BACKUP_TEMP_DIR= # temporary directory used to store the /etc backup
 
 ETC_OVERLAY_ABSDIR=@etc_overlay_absdir@
 ETC_BACKUP_DIR=@etc_backup_dir@
+OLD_BACKUP_DIR=${ETC_BACKUP_DIR//holo-atomupd/steamos-atomupd}
 ATOMIC_UPDATE_CONF_D=@atomic_update_conf_d@
 RAUC_LIBDIR=@rauc_libdir@
 
@@ -135,6 +136,7 @@ backup_etc_changes() {
     local free_space
     # This is mounted at $dst, so we change the sysroot from `/var` to $dst
     local backup_dir="${dst}${ETC_BACKUP_DIR#"/var"}"
+    local backup_old="${dst}${OLD_BACKUP_DIR#"/var"}"
     local upper_dir="${ETC_OVERLAY_ABSDIR#"/var"}/upper"
 
     BACKUP_TEMP_DIR=$(mktemp --tmpdir -d "etc_backup.XXXXXX")
@@ -145,6 +147,14 @@ backup_etc_changes() {
 
     mkdir -p "${backup_dir}"
     backup_name="$(date '+%F_%H-%M-%S').tar.xz"
+
+    # If we still have old backupdir location, move its contents:
+    if [ -d "${backup_old}" ] && [ ! -L "${backup_old}" ]
+    then
+        find "${backup_old}" -maxdepth 1 -mindepth 1 | \
+            xargs -I '%%' mv %% "${backup_dir}"
+        rmdir "${backup_old}" || :
+    fi
 
     # When creating the backup we transform the directory structure so that instead of having
     # the files under something like `var/lib/overlays/etc/upper/...` we end up with `etc/...`

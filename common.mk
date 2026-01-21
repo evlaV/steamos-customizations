@@ -141,7 +141,7 @@ RAUC_LIBDIR := $(libdir)/rauc/
 
 # When applying an update, this is the directory where the edited /etc files
 # will be backed up
-ETC_BACKUP_DIR := /var/lib/steamos-atomupd/etc_backup
+ETC_BACKUP_DIR := /var/lib/holo-atomupd/etc_backup
 
 # NOTE: Don't use the semicolon as a separator for sed because it will
 # clash with the semicolons used in the variants list
