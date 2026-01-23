@@ -1,0 +1,148 @@
+#!/usr/bin/ash
+# -*- mode: sh; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
+# vim: et sts=4 sw=4
+
+#  SPDX-License-Identifier: LGPL-2.1+
+#
+#  Copyright © 2022-2023 Collabora Ltd.
+#  Copyright © 2022-2023 Valve Corporation.
+#
+#  This file is part of steamos-customizations.
+#
+#  steamos-customizations is free software; you can redistribute it and/or modify
+#  it under the terms of the GNU Lesser General Public License as published
+#  by the Free Software Foundation; either version 2.1 of the License, or
+#  (at your option) any later version.
+
+NEWROOT=/new_root
+
+# these are set by holo_parse_cmdline based on the kernel cmdline:
+holo_efi=
+holo_factory_reset=0
+
+emergency_shell() {
+    launch_interactive_shell --exec
+}
+
+ismounted() {
+    findmnt "$1" > /dev/null 2>&1
+}
+
+vinfo() {
+    local x
+    while read -r x; do
+        msg "$x"
+    done
+}
+
+to_integer() {
+    if [ -n "$1" ] && [ "$1" -ne 0 ]; then
+        echo 1
+    else
+        echo 0
+    fi
+}
+
+# mkinitcpio doesn't have a convenient kernel command line getarg
+# helper so we process all the arguments we care about in one place:
+holo_parse_cmdline() {
+    local key=$1 value=$2
+
+    case $key in
+        rd.steamos.factory-reset|steamos.factory-reset)
+            holo_factory_reset=$(to_integer "$value")
+            ;;
+        rd.holo.factory-reset|holo.factory-reset)
+            holo_factory_reset=$(to_integer "$value")
+            ;;
+        rd.steamos.efi|steamos.efi)
+            holo_efi="$value"
+            msg "EFI partition from kernel cmdline is \"$steamos_efi\""
+            ;;
+    esac
+}
+
+############################################################################
+
+@HOLO_UDEV_RULES@
+
+############################################################################
+
+run_hook() {
+    # This hook runs _before_ the real rootfs is mounted
+    local rdev
+
+    parse_cmdline holo_parse_cmdline </proc/cmdline
+
+    holo_setup_partsets "$holo_efi"
+
+    rdev=/dev/@udev_symlinks_reldir@/self/rootfs
+    msg "Waiting for root device $rdev"
+    poll_device "$rdev"
+
+    msg "Setting root target to $rdev"
+    # shellcheck disable=SC2034 # used by init_functions:default_mount_handler()
+    root=$rdev
+
+    # HERE BE DRAGONS:
+    #
+    # The RO rootfs setup and situation is tricky and has some non-obvious
+    # traps. Here's a summary:
+    #
+    # We used to mount the rootfs without an explicit RO/RW flag.
+    # This was required for the ext234 rootfs to work properly. In particular
+    # during holo-readonly we set the tune2fs RO flag, which is the
+    # default state used by mount whenever there is no explicit RO/RW passed.
+    #
+    # That caused systemd to try to remount the rootfs (after the root pivot)
+    # which resulted in failures. That was masked out via a config file.
+    #
+    # The explicit RO mount was also causing issues with btrfs rootfs,
+    # since btrfs uses 'btrfs property set' rather than the fstab flag.
+    #
+    # mkinitcpio explicitly passes the RO/RW flag at mount (default RO).
+    # If we leave RO in the fstab the tune2fs RO flag is ignored and the
+    # ext234 rootfs will always be RO requiring a manual remount on
+    # every boot even when 'holo-readonly disable' has been used.
+    #
+    # On the btrfs front, the situation is worse. One needs to remount RW
+    # manually even to toggle back to holo-readonly enable.
+    #
+    # As a sane-ish default we opt for RW here. This means that for
+    # ext234 the RO tune2fs state will be invalid but both fs will
+    # just work correctly with 'holo-readonly'.
+    #
+    # shellcheck disable=SC2034 # used by init_functions:default_mount_handler()
+    rwopt=rw
+}
+
+############################################################################
+
+@HOLO_FACTORY_RESET@
+
+############################################################################
+
+@HOLO_VAR@
+
+############################################################################
+
+@HOLO_ETC_OVERLAY@
+
+############################################################################
+
+@HOLO_VAR_LIB@
+
+############################################################################
+
+run_latehook() {
+    # This is run after the rootfs is mounted, but before
+    # switch_root is invoked to pivot to it:
+
+    # re-parse the command line (settings from run_hook will have
+    # disappeared by now):
+    parse_cmdline steamos_parse_cmdline </proc/cmdline
+    factory_reset "$holo_factory_reset"
+    mount_var
+    setup_etc_overlay
+    initialize_var_lib_modules
+}

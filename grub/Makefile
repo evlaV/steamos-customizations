@@ -12,14 +12,22 @@ SERVICES := $(patsubst %.in,%,$(SERVICES_IN))
 MOUNTS := $(wildcard systemd/*.mount)
 UNITS := $(SERVICES) $(MOUNTS)
 CLEANABLE := $(BINARIES) $(LIBRARIES_EXEC) $(GRUB_SCRIPTS) $(SERVICES)
+RENAMED_LIBX := $(patsubst %,libexec/holo-grub-%,\
+                  install mkearlyconfig mkimage)
 
 all: $(BINARIES) $(LIBRARIES_EXEC) $(GRUB_SCRIPTS) $(SERVICES)
 
-install: all
+aliases: IDIR := $(DESTDIR)$(libexecdir)/steamos
+aliases: $(filter $(RENAMED_LIBX),$(LIBRARIES_EXEC))
+	@install -d $(IDIR)
+	@(for X in $(^F); \
+	  do ln -svf $(ALIAS) $(IDIR)/$${X//holo/steamos}; done)
+
+install: all aliases
 	install -d $(DESTDIR)$(sbindir)
 	install -m 0755 $(BINARIES) $(DESTDIR)$(sbindir)
-	install -d $(DESTDIR)$(libdir)/steamos
-	install -m 0755 $(LIBRARIES_EXEC) $(DESTDIR)$(libdir)/steamos
+	install -d $(DESTDIR)$(libdir)/holo
+	install -m 0755 $(LIBRARIES_EXEC) $(DESTDIR)$(libdir)/holo
 	install -d $(DESTDIR)$(sysconfdir)/grub.d
 	install -m 0755 $(GRUB_SCRIPTS) $(DESTDIR)$(sysconfdir)/grub.d
 	install -d $(DESTDIR)$(completionsdir)

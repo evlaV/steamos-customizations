@@ -9,7 +9,7 @@ directory=/etc/rauc/trusted_keys/
 
 [casync]
 tmppath=/tmp
-install-args=--seed /var/lib/steamos-atomupd/rootfs.caibx --config /etc/desync/config.json --in-place --error-retry 35 --regenerate-invalid-seeds
+install-args=--seed /var/lib/holo-atomupd/rootfs.caibx --config /etc/desync/config.json --in-place --error-retry 35 --regenerate-invalid-seeds
 use-desync=true
 
 [handlers]

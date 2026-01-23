@@ -19,7 +19,7 @@ ConditionVirtualization=vm
 
 [Service]
 Type=oneshot
-ExecStart=@libexecdir@/steamos/steamos-set-autologin-session
+ExecStart=@libexecdir@/holo/steamos-set-autologin-session
 
 [Install]
 WantedBy=graphical.target

@@ -1,5 +1,5 @@
-initcpio/hooks/steamos.in
-initcpio/hooks/steamos
-initcpio/install/steamos.in
-initcpio/install/steamos
+initcpio/hooks/holo.in
+initcpio/hooks/holo
+initcpio/install/holo.in
+initcpio/install/holo
 initcpio/install/steam-deck

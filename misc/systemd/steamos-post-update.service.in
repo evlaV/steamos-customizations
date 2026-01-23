@@ -13,13 +13,13 @@
 Description=Run tasks on the first boot after an OS update
 After=local-fs.target
 Before=sddm.service
-ConditionPathExists=/var/lib/steamos-atomupd/system-updated
+ConditionPathExists=/var/lib/holo-atomupd/system-updated
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=@libexecdir@/steamos/steamos-post-update
-ExecStart=rm -f /var/lib/steamos-atomupd/system-updated
+ExecStart=@libexecdir@/holo/steamos-post-update
+ExecStart=rm -f /var/lib/holo-atomupd/system-updated
 
 [Install]
 WantedBy=local-fs.target

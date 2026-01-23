@@ -56,7 +56,7 @@ fi
 rm -f $ACTIVE_TIMERS
 
 #
-# Take a slot and the json from steamos-atomupd/manifest.json and make
+# Take a slot and the json from holo-atomupd/manifest.json and make
 # a suitable boot menu label, falling back to something generic
 #
 
@@ -119,7 +119,7 @@ configure_other_efi() {
     if ! [ -e "$bootconf" ]; then
         log "Initializing 'other' esp bootconf: '$bootconf'"
         mkdir -p "$confdir"
-        steamos-bootconf create --conf-dir "$confdir" --image "$ident" --set title "$ident"
+        holo-bootconf create --conf-dir "$confdir" --image "$ident" --set title "$ident"
     fi
 
     roothash=$efi/$ROOTHASH_RELPATH
@@ -131,7 +131,7 @@ configure_other_efi() {
 
 log "Detecting 'other' efi partition"
 
-declare -r BOOTED_SLOT=$(steamos-bootconf this-image)
+declare -r BOOTED_SLOT=$(holo-bootconf this-image)
 UPDATED_SLOT=
 
 log "Booted into slot $BOOTED_SLOT"
@@ -224,9 +224,23 @@ mount "$VAR_DEVICE_OTHER" /mnt/var
 
 # Remove the old rootfs index to ensure that we either have the correct one
 # or that we don't have it at all.
-rm -f /mnt/var/lib/steamos-atomupd/rootfs.caibx
-mkdir -p /mnt/var/lib/steamos-atomupd
-cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/var/lib/steamos-atomupd/rootfs.caibx || \
+old_varlib_d=var/lib/steamos-atomupd
+new_varlib_d=var/lib/holo-atomupd
+rm -f /mnt/$old_varlib_d/rootfs.caibx
+rm -f /mnt/$new_varlib_d/rootfs.caibx
+
+if [ ! -d /mnt/$new_varlib_d ]
+then
+    if [ -d /mnt/$old_varlib_d ] && [ ! -L /mnt/$old_varlib_d ]
+    then
+        mv /mnt/$old_varlib_d /mnt/$new_varlib_d
+    else
+        mkdir -p /mnt/$new_varlib_d
+    fi
+    ln -sf /$new_varlib_d /mnt/$old_varlib_d
+fi
+
+cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/$new_varlib_d/rootfs.caibx || \
     warn "Failed to copy the rootfs seed index file"
 umount /mnt/var
 umount /mnt
@@ -236,29 +250,43 @@ umount /mnt
 #
 
 log "Installing the bootloaders"
-# any newer image should have finalize-install but a downgrade may be missing it;
-# if so look for an older post-install script
-steamos-chroot --partset $UPDATED_SLOT -- steamos-finalize-install --no-kernel || \
-    steamos-chroot --partset $UPDATED_SLOT -- steamos-boot-install --no-kernel || \
-    err "Failed to install bootloaders"
+# The finalisation script has changed name a couple of times, so call each name
+# from newest to oldest until we successfully invoke one (just in case we are
+# downgrading the OS):
+declare -ar FINISH=({holo,steamos}-finalize-install steamos-boot-install)
+declare -i  FINISHED=0
+
+for finish in ${FINISH[@]}
+do
+    if holo-chroot --partset $UPDATED_SLOT -- $finish --no-kernel
+    then
+        FINISHED=1
+        break
+    fi
+done
+
+if [ $FINISHED -ne 1 ]
+then
+    err "Failed to install bootloaders (tried: ${FINISH[*]})"
+fi
 
 # Mark the new partition valid, otherwise it will not boot
 # (note; you can't call rauc status mark-good here)
-(( ERR == 0 )) && steamos-bootconf --image $UPDATED_SLOT set-mode reboot
+(( ERR == 0 )) && holo-bootconf --image $UPDATED_SLOT set-mode reboot
 
 # Store the installed update version in a temporary file to record that we
 # have a pending reboot to switch to the new image
 # Additionally, record the current booted slot in a temporary file that
 # triggers the sync during shutdown (holo-post-update-shutdown.service)
 if [ $ERR == 0 ]; then
-  update_manifest=$(steamos-chroot --partset $UPDATED_SLOT -- cat "/etc/steamos-atomupd/manifest.json")
+  update_manifest=$(holo-chroot --partset $UPDATED_SLOT -- cat "/etc/holo-atomupd/manifest.json")
   update_buildid=$(jq -r '.buildid | select(type == "string")' <<< "$update_manifest")
   update_version=$(jq -r '.version | select(type == "string")' <<< "$update_manifest")
   echo "${update_buildid}-${update_version}" > "$REBOOT_FOR_UPDATE"
   label=$(boot_label "$UPDATED_SLOT" "$update_manifest")
   if [ -n "${label:-}" ]; then
-      steamos-chroot --partset $UPDATED_SLOT -- \
-                     steamos-bootconf config --set title "${label:-}"
+      holo-chroot --partset $UPDATED_SLOT -- \
+                     holo-bootconf config --set title "${label:-}"
   fi
 
   echo "$BOOTED_SLOT" > "$HOLO_BOOTED_SLOT_SYNC_TRIGGER" || \

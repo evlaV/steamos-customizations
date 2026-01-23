@@ -12,6 +12,6 @@ all: $(SERVICES)
 install: all
 	install -d $(DESTDIR)$(systemdunitsdir)
 	install -m 0644 $(UNITS) $(DESTDIR)$(systemdunitsdir)
-	install -d $(DESTDIR)$(libexecdir)/steamos
-	install -m 0755 $(HIBERNATE_SCRIPTS) $(DESTDIR)$(libexecdir)/steamos
+	install -d $(DESTDIR)$(libexecdir)/holo
+	install -m 0755 $(HIBERNATE_SCRIPTS) $(DESTDIR)$(libexecdir)/holo
 	$(call enable-systemd-units,$(DESTDIR)$(systemdunitsdir),$(notdir $(UNITS)))

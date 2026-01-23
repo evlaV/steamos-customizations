@@ -7,4 +7,4 @@ systemd/var-lib-flatpak.mount
 systemd/var-lib-systemd-coredump.mount
 systemd/var-log.mount
 systemd/var-tmp.mount
-tmpfiles.d/steamos-offload.conf
+tmpfiles.d/holo-offload.conf
