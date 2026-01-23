@@ -1,0 +1,52 @@
+#!/bin/sh
+# -*- mode: sh; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
+# vim: et sts=4 sw=4
+
+#  SPDX-License-Identifier: LGPL-2.1+
+#
+#  Copyright © 2025 Valve Corporation.
+#
+#  This file is part of steamos-customizations.
+#
+#  steamos-customizations is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public License as
+#  published by the Free Software Foundation; either version 2.1 of the License,
+#  or (at your option) any later version.
+
+# This script is run during shutdown after an OS update.
+# See holo-post-update-shutdown.service for details.
+
+SYMLINKS_DIR=@udev_symlinks_absdir@
+HOLO_BOOTED_SLOT_SYNC_TRIGGER=@holo_booted_slot_sync_trigger@
+
+warn() { echo >&2 "Warning:" "$@"; }
+fail() { echo >&2 "Error:" "$@"; exit 1; }
+
+# Mount the other rootfs and var partitions to sync
+declare -r BOOTED_SLOT=$(cat ${HOLO_BOOTED_SLOT_SYNC_TRIGGER})
+UPDATED_SLOT=
+
+case $BOOTED_SLOT in
+    A)
+        UPDATED_SLOT=B
+        ;;
+    B)
+        UPDATED_SLOT=A
+        ;;
+    *)
+        fail "Not booted into A or B, not syncing /var files"
+        ;;
+esac
+
+ROOTFS_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$UPDATED_SLOT/rootfs)
+VAR_DEVICE_OTHER=$(realpath $SYMLINKS_DIR/$UPDATED_SLOT/var)
+mount -o ro "$ROOTFS_DEVICE_OTHER" /mnt
+mount "$VAR_DEVICE_OTHER" /mnt/var
+
+# Use sync preserved script to grab any changes made after post-install.sh ran.
+/usr/lib/steamos/holo-sync-var catchup || \
+    warn "Failed to sync the var partitions before shutdown"
+
+umount /mnt/var
+umount /mnt
+
