@@ -1,0 +1,142 @@
+#!/bin/bash
+# -*- mode: sh; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
+# vim: et sts=4 sw=4
+
+#  SPDX-License-Identifier: LGPL-2.1+
+#
+#  Copyright © 2020-2021 Collabora Ltd.
+#  Copyright © 2020-2021 Valve Corporation.
+#
+#  This file is part of steamos-customizations.
+#
+#  steamos-customizations is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public License as
+#  published by the Free Software Foundation; either version 2.1 of the License,
+#  or (at your option) any later version.
+
+set -euo pipefail
+
+OS_LABEL=$(source /etc/os-release || :; echo ${PRETTY_NAME:-Holo})
+
+usage() {
+    cat <<EOF
+Usage: ${0##*/} enable|disable|status
+
+Enable or disable read-only on the current running ${OS_LABEL}.
+EOF
+}
+
+needs_root() {
+    if [[ "$(id -u)" -ne 0 ]]; then
+        echo "$(basename "$0") needs to be run as root"
+        exit 1
+    fi
+}
+
+# Test whether systemd system extension images are loaded. If so,
+# /usr may be read-only, regardless of the value of the btrfs ro property.
+# This is not a guarantee though, extensions may be merged in mutable mode.
+has_loaded_sysexts() {
+    if systemd-sysext status --json=short | \
+        jq -e '.[] | select(.hierarchy=="/usr").extensions | type == "array" and length > 0' >/dev/null; then
+        return 0
+    fi
+    return 1
+}
+
+# mark root partition writable
+read_write() {
+    if has_loaded_sysexts; then
+        echo "Warning: loaded sysexts may result in some parts" \
+            "of the filesystem being read-only." >&2
+    fi
+
+    if ! status >/dev/null; then
+        echo "Warning: The rootfs is already read-write!" >&2
+        echo "         Nothing is performed." >&2
+        return
+    fi
+    needs_root
+
+    mount -o remount,rw /
+    btrfs property set / ro false
+
+    # Write token file to easily distinguish when the FS have been toggled. This
+    # is a quick and dirty check (as used by steamos-systemreport) and by no
+    # means an comprehensive solution.
+    date > /.ROOTFS_RW
+}
+
+#
+# mark root partition read-only
+read_only() {
+    if status >/dev/null; then
+        echo "Warning: The rootfs is already read-only!" >&2
+        echo "         Nothing is performed." >&2
+        return
+    fi
+    needs_root
+
+    sync /
+    btrfs property set / ro true
+}
+
+status() {
+    prop_val=$(btrfs property get / ro)
+    if [[ $prop_val = "ro=true" ]]; then
+        echo "enabled"
+        return 0
+    else
+        if has_loaded_sysexts; then
+            echo "disabled, but loaded sysexts may result in" \
+                "some parts of the filesystem being read-only"
+        else
+            echo "disabled"
+        fi
+        return 1
+    fi
+}
+
+
+toggle() {
+    if status >/dev/null; then
+        read_write
+    else
+        read_only
+    fi
+    status
+}
+
+# determine file system type and set the fstype variable used above
+get_fstype() {
+    declare -r FSTYPE=$(findmnt -fn --output FSTYPE /)
+    case "$FSTYPE" in
+        btrfs)
+            ;;
+        *)
+            echo "Unrecognized root filesystem type $FSTYPE"
+            exit 1
+    esac
+}
+
+get_fstype
+
+case "${1:-}" in
+    disable)
+        action=read_write
+        ;;
+    enable)
+        action=read_only
+        ;;
+    toggle)
+        action=toggle
+        ;;
+    status)
+        action=status
+        ;;
+    *)
+        usage
+        exit 1
+esac
+
+"$action"

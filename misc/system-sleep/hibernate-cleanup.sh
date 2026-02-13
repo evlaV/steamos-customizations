@@ -13,7 +13,7 @@ case ${1:-} in
     case "$op" in
       hibernate)
         logger "system-sleep: Running hibernate cleanup after $op"
-        /usr/lib/steamos/hibernate-swap-helper.sh cleanup 2>&1 | logger
+        /usr/lib/holo/hibernate-swap-helper.sh cleanup 2>&1 | logger
         ;;
     esac
     ;;
