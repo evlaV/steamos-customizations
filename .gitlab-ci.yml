@@ -1,0 +1,12 @@
+build:
+  tags:
+    - x86_64-linux-kvm-docker
+  image: ${CI_DEPENDENCY_PROXY_GROUP_IMAGE_PREFIX}/archlinux:base-devel
+  script:
+    - |
+      export DESTDIR=$(mktemp -d)
+      make install
+      make install-mkinitcpio
+      make install-desync
+      make install-sudo
+      make clean
