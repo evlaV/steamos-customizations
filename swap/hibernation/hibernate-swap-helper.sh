@@ -1,6 +1,7 @@
 #!/bin/bash
 # Helper script for managing temporary hibernation swap file
 set -e
+set -u
 
 SWAP_DIR="/home"
 SWAP_FILE="$SWAP_DIR/hibernation.swapfile"
@@ -73,21 +74,48 @@ check_existing_swap() {
 }
 
 create_swap() {
-	# Use 40% of the active memory size as the swap size
+	local VRAM_SZ=0;
+
+	AVAILABLE_SPACE=$(df -k "$SWAP_DIR" | awk 'NR==2 {print $4}')
+
 	TOTAL_MEM=$(awk '/^MemTotal: / {print $2}' /proc/meminfo)
-	REQUIRED_SIZE=$(( TOTAL_MEM * 40 / 100 ))
+
+	shopt -s nullglob
+	# FIXME: This file is available for amdgpu-backed GPUs only. The swap size
+	# will not account for VRAM in intel/NVIDIA systems.
+	for f in /sys/class/drm/card*/device/mem_info_vram_total; do
+		(( VRAM_SZ += ($(<"$f") / 1024) ))
+	done
+	shopt -u nullglob
+
+	# Amount of free space to always have available (500Mb).
+	FREE_SPACE_BUFFER=$(( 500 * 1024 ))
+
+	# Minimum swap required (10% of Total Memory)
+	MIN_SWAP=$(( TOTAL_MEM * 10 / 100 ))
+
+	# Maximum clamp value
+	MAX_SWAP=$(( TOTAL_MEM + VRAM_SZ ))
+
+	USABLE_SPACE=$(( AVAILABLE_SPACE - FREE_SPACE_BUFFER ))
+
+	# Check if there's enough space in the target directory
+	if [ "$USABLE_SPACE" -lt "$MIN_SWAP" ]; then
+		echo "Error: Not enough space in $SWAP_DIR (need at least ${MIN_SWAP}KB for swap + ${FREE_SPACE_BUFFER}KB buffer, have ${AVAILABLE_SPACE}KB)" >&2
+		exit 1
+	fi
+
+	# Determine final swap size.
+	if [ "$USABLE_SPACE" -gt "$MAX_SWAP" ]; then
+		REQUIRED_SIZE="$MAX_SWAP"
+	else
+		REQUIRED_SIZE="$USABLE_SPACE"
+	fi
 
 	OLD_RESUME=$(cat /sys/power/resume 2>/dev/null || echo "0:0")
 	OLD_RESUME_OFFSET=$(cat /sys/power/resume_offset 2>/dev/null || echo "0")
 
 	check_existing_swap "$REQUIRED_SIZE" "$OLD_RESUME"
-
-	# Check if there's enough space in the target directory
-	AVAILABLE_SPACE=$(df -k "$SWAP_DIR" | awk 'NR==2 {print $4}')
-	if [ "$AVAILABLE_SPACE" -lt "$REQUIRED_SIZE" ]; then
-		echo "Error: Not enough space in $SWAP_DIR (need ${REQUIRED_SIZE}KB, have ${AVAILABLE_SPACE}KB)" >&2
-		exit 1
-	fi
 
 	# If the same name swap file already exists, check its size and reuse it if sufficient
 	if [ -f "$SWAP_FILE" ]; then
