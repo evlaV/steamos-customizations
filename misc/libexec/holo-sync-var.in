@@ -229,6 +229,8 @@ keep_previous_etc_copy() {
     if ! rsync \
         --archive \
         --one-file-system \
+        --hard-links \
+        --acls \
         --exclude="/previous" \
         "${src}${upper_dir}/" "${dst}${previous_etc_dir}/"; then
 
@@ -273,6 +275,8 @@ sync_var_mountpoints() {
         --archive \
         --delete \
         --one-file-system \
+        --hard-links \
+        --acls \
         --exclude="/boot/" \
         --exclude="/lib/dkms/" \
         --exclude="/lib/modules/" \
@@ -324,6 +328,7 @@ sync_var_mountpoints() {
 
     # `-rlpgoD` is `--archive` without the `--times` option. We don't care about the
     # modification times, just the content.
+    # `-HA` to preserve hard links, ACLs.
     # `--compare-dest` allows us to synchronize only the files that actually changed.
     # `--prune-empty-dirs` plus `--include="*/"` allow us to retain the
     # directory structure while excluding empty directories.
@@ -332,7 +337,7 @@ sync_var_mountpoints() {
     # `--exclude="*"` is the final catch-all, to exclude all the files that
     # were not explicitly listed in the config file.
     if ! rsync \
-        -rlpgoD \
+        -rlpgoDHA \
         --delete \
         --one-file-system \
         --checksum \
