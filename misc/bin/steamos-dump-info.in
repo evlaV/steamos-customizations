@@ -4,7 +4,7 @@
 
 #  SPDX-License-Identifier: LGPL-2.1+
 #
-#  Copyright © 2023 Valve Corporation.
+#  Copyright © 2023-2026 Valve Corporation.
 #
 #  This file is part of steamos-customizations.
 #
@@ -15,9 +15,10 @@
 
 ##
 ## Dumps useful information about the system to kmsg on boot, so that it's
-## readily available for debug
+## readily available for debug. Do not set -e to ensure as much info as
+## possible is collected and reported, even if some files are missing.
 ##
-set -euo pipefail
+set -uo pipefail
 
 if [ $EUID -ne 0 ]; then
   echo "this must be run as root!"

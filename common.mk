@@ -133,9 +133,6 @@ ATOMIC_UPDATE_CONF_D := $(sysconfdir)/atomic-update.conf.d
 # will be backed up
 ETC_BACKUP_DIR := /var/lib/steamos-atomupd/etc_backup
 
-# Custom SDDM configuration file to set the default autologin session
-SDDM_AUTOLOGIN_CONF := $(sysconfdir)/sddm.conf.d/zz-steamos-autologin.conf
-
 # NOTE: Don't use the semicolon as a separator for sed because it will
 # clash with the semicolons used in the variants list
 %: %.in
@@ -171,7 +168,6 @@ SDDM_AUTOLOGIN_CONF := $(sysconfdir)/sddm.conf.d/zz-steamos-autologin.conf
 	  -e 's|@reboot_for_update@|$(REBOOT_FOR_UPDATE)|g' \
 	  -e 's|@atomic_update_conf_d@|$(ATOMIC_UPDATE_CONF_D)|g' \
 	  -e 's|@etc_backup_dir@|$(ETC_BACKUP_DIR)|g' \
-	  -e 's|@sddm_autologin_conf@|$(SDDM_AUTOLOGIN_CONF)|g' \
 	  $< > $@
 	@if grep -q '@[[:alnum:]_]+@' $@; then \
 	  echo >&2 "Substitution error!!!"; \
