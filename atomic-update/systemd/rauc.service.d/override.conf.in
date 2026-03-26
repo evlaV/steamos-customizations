@@ -10,3 +10,4 @@
 [Service]
 ExecStart=
 ExecStart=/usr/lib/rauc/rauc-override.sh
+LogFilterPatterns=~_DO_NOT_SHARE_URL
