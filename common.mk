@@ -12,8 +12,11 @@ systemdunitsdir := $(libdir)/systemd/system
 completionsdir := $(shell pkg-config --define-variable=prefix=$(prefix) --variable=completionsdir bash-completion 2>/dev/null \
 			  || echo /usr/share/bash-completion/completions/)
 
+# -------- Aliasing wrapper -------- #
+ALIAS := $(sbindir)/holo-alias
 
 # -------- Some tweaks -------- #
+SHELL := /bin/bash
 
 # Delete default rules, otherwise the rule '%: %.in' won't catch
 # the files with the extention '.sh.in'
@@ -138,7 +141,7 @@ RAUC_LIBDIR := $(libdir)/rauc/
 
 # When applying an update, this is the directory where the edited /etc files
 # will be backed up
-ETC_BACKUP_DIR := /var/lib/steamos-atomupd/etc_backup
+ETC_BACKUP_DIR := /var/lib/holo-atomupd/etc_backup
 
 # NOTE: Don't use the semicolon as a separator for sed because it will
 # clash with the semicolons used in the variants list

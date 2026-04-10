@@ -44,7 +44,7 @@ elif [[ -f ${RAUC_BUNDLE_MOUNT_POINT}/rootfs.img ]]; then
 fi
 
 if [[ ${target_uuid} ]]; then
-    this_image=$(steamos-bootconf this-image)
+    this_image=$(holo-bootconf this-image)
     root_uuid=$(blkid -o value -s UUID ${SYMLINKS_DIR}/${this_image}/rootfs)
 
     log "Current image rootfs UUID: $root_uuid"
