@@ -16,8 +16,8 @@
 
 NEWROOT=/new_root
 
-# these are set by holo_parse_cmdline based on the kernel cmdline:
-holo_efi=
+# these are set by steamos_parse_cmdline based on the kernel cmdline:
+steamos_efi=
 holo_factory_reset=0
 
 emergency_shell() {
@@ -45,7 +45,7 @@ to_integer() {
 
 # mkinitcpio doesn't have a convenient kernel command line getarg
 # helper so we process all the arguments we care about in one place:
-holo_parse_cmdline() {
+steamos_parse_cmdline() {
     local key=$1 value=$2
 
     case $key in
@@ -56,15 +56,15 @@ holo_parse_cmdline() {
             holo_factory_reset=$(to_integer "$value")
             ;;
         rd.steamos.efi|steamos.efi)
-            holo_efi="$value"
-            msg "EFI partition from kernel cmdline is \"$holo_efi\""
+            steamos_efi="$value"
+            msg "EFI partition from kernel cmdline is \"$steamos_efi\""
             ;;
     esac
 }
 
 ############################################################################
 
-@HOLO_UDEV_RULES@
+@STEAMOS_UDEV_RULES@
 
 ############################################################################
 
@@ -72,9 +72,9 @@ run_hook() {
     # This hook runs _before_ the real rootfs is mounted
     local rdev
 
-    parse_cmdline holo_parse_cmdline </proc/cmdline
+    parse_cmdline steamos_parse_cmdline </proc/cmdline
 
-    holo_setup_partsets "$holo_efi"
+    steamos_setup_partsets "$steamos_efi"
 
     rdev=/dev/@udev_symlinks_reldir@/self/rootfs
     msg "Waiting for root device $rdev"
@@ -122,15 +122,15 @@ run_hook() {
 
 ############################################################################
 
-@HOLO_VAR@
+@STEAMOS_VAR@
 
 ############################################################################
 
-@HOLO_ETC_OVERLAY@
+@STEAMOS_ETC_OVERLAY@
 
 ############################################################################
 
-@HOLO_VAR_LIB@
+@STEAMOS_VAR_LIB@
 
 ############################################################################
 
@@ -140,7 +140,7 @@ run_latehook() {
 
     # re-parse the command line (settings from run_hook will have
     # disappeared by now):
-    parse_cmdline holo_parse_cmdline </proc/cmdline
+    parse_cmdline steamos_parse_cmdline </proc/cmdline
     factory_reset "$holo_factory_reset"
     mount_var
     setup_etc_overlay

@@ -1,4 +1,4 @@
-declare -a HOLO_BINARIES=(
+declare -a STEAMOS_BINARIES=(
     basename
     blkid
     btrfs
