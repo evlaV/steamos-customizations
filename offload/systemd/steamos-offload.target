@@ -8,7 +8,7 @@
 #  or (at your option) any later version.
 
 [Unit]
-Description=Holo Offload
+Description=SteamOS Offload
 
 [Install]
 WantedBy=local-fs.target
