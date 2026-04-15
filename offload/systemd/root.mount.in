@@ -8,7 +8,7 @@
 #  or (at your option) any later version.
 
 [Unit]
-Description=Holo Offload - /root
+Description=SteamOS Offload - /root
 
 [Mount]
 What=@offload_absdir@/root
@@ -17,4 +17,4 @@ Type=none
 Options=bind
 
 [Install]
-WantedBy=holo-offload.target
+WantedBy=steamos-offload.target

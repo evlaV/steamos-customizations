@@ -14,14 +14,14 @@ Description=Finish migration from OOBE build
 After=sysinit.target
 # We don't want anything that will start user sessions to happen before we fix the /home/ folder
 Before=multi-user.target
-Before=holo-create-homedir.service steamos-create-homedir.service
+Before=steamos-create-homedir.service
 ConditionPathIsDirectory=/home/doorstop
 ConditionPathIsSymbolicLink=!/home/doorstop
 
 [Service]
 Type=oneshot
 RemainAfterExit=true
-ExecStart=@libexecdir@/holo/holo-finish-oobe-migration
+ExecStart=@libexecdir@/steamos/steamos-finish-oobe-migration
 
 [Install]
 WantedBy=basic.target
