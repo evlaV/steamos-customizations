@@ -99,7 +99,7 @@ do_reset() {
                     wait_pids="$wait_pids $!"
                     ;;
                 *)
-                    @WARN@ "Unexpected OS reset type $type ($instance, $dev)"
+                    @WARN@ "Unexpected SteamOS reset type $type ($instance, $dev)"
                     rm -f "$cfg"
                     ;;
             esac
@@ -149,7 +149,7 @@ factory_reset() {
     if [ "$want_reset" -eq 0 ]; then
         want_reset=$1
         if [ "$want_reset" -ne 0 ]; then
-            holo-factory-reset-config
+            steamos-factory-reset-config
         fi
     fi
 

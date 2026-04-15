@@ -18,7 +18,7 @@ NEWROOT=/new_root
 
 # these are set by steamos_parse_cmdline based on the kernel cmdline:
 steamos_efi=
-holo_factory_reset=0
+steamos_factory_reset=0
 
 emergency_shell() {
     launch_interactive_shell --exec
@@ -50,10 +50,7 @@ steamos_parse_cmdline() {
 
     case $key in
         rd.steamos.factory-reset|steamos.factory-reset)
-            holo_factory_reset=$(to_integer "$value")
-            ;;
-        rd.holo.factory-reset|holo.factory-reset)
-            holo_factory_reset=$(to_integer "$value")
+            steamos_factory_reset=$(to_integer "$value")
             ;;
         rd.steamos.efi|steamos.efi)
             steamos_efi="$value"
@@ -118,7 +115,7 @@ run_hook() {
 
 ############################################################################
 
-@HOLO_FACTORY_RESET@
+@STEAMOS_FACTORY_RESET@
 
 ############################################################################
 
@@ -141,7 +138,7 @@ run_latehook() {
     # re-parse the command line (settings from run_hook will have
     # disappeared by now):
     parse_cmdline steamos_parse_cmdline </proc/cmdline
-    factory_reset "$holo_factory_reset"
+    factory_reset "$steamos_factory_reset"
     mount_var
     setup_etc_overlay
     initialize_var_lib_modules
