@@ -154,14 +154,42 @@ function update_pacman_dbpath
     fi
 }
 
-function cleanup_atomupd_conf
+function cleanup_atomupd
 {
+    local upper_holo_atomupd="/var/lib/overlays/etc/upper/holo-atomupd"
+    local upper_steamos_atomupd="/var/lib/overlays/etc/upper/steamos-atomupd"
+
     # When updating from SteamOS 3.5 and earlier, we usually preserved /etc/ user edits.
     # This could be problematic for atomupd, because older configurations could miss new
     # required fields.
     # Force the removal of the eventual user edited `client.conf`.
-    rm -f "/var/lib/overlays/etc/upper/holo-atomupd/client.conf"
-    rm -f "/var/lib/overlays/etc/upper/steamos-atomupd/client.conf"
+    rm -f "${upper_holo_atomupd}/client.conf"
+    rm -f "${upper_steamos_atomupd}/client.conf"
+
+    # When updating from SteamOS 3.8 and earlier, the eventual user preferences were stored
+    # in /etc/steamos-atomupd. If we have that directory in the overlay, we should migrate
+    # the content to the new /etc/holo-atomupd and remove it. steamos-customizations is already
+    # providing a symlink /etc/steamos-atomupd -> /etc/holo-atomupd as part of the OS, and we
+    # don't want to override it with a directory in the overlay.
+    if [ ! -L "$upper_steamos_atomupd" ] && [ -d "$upper_steamos_atomupd" ]
+    then
+        mkdir -p "$upper_holo_atomupd" || \
+            echo "Warning: Failed to create the directory $upper_holo_atomupd" >&2
+
+        if [ -d "$upper_holo_atomupd" ]
+        then
+            (
+                shopt -s dotglob
+                mv "$upper_steamos_atomupd"/* "$upper_holo_atomupd" || \
+                    echo "Warning: Failed to migrate the files from $upper_steamos_atomupd to $upper_holo_atomupd" >&2
+            )
+        fi
+
+        # Delete the old directory, regardless of the success of moving the user preferences.
+        # We want to try really hard at not breaking the atomic updates.
+        rm -rf "$upper_steamos_atomupd" || \
+            echo "Warning: Failed to cleanup the old $upper_steamos_atomupd" >&2
+    fi
 }
 
 while [[ "$#" -ne 0 ]]
@@ -204,7 +232,7 @@ then
         migrate_network
         migrate_home_steamos_update
         update_pacman_dbpath # DBPath is on the RO rootfs with 3.5+
-        cleanup_atomupd_conf
+        cleanup_atomupd
     else
         echo "Skipping configuration migration steps as this is not running in a chroot."
     fi
