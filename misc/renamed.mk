@@ -10,7 +10,6 @@ RENAMED_BINS := \
   bin/holo-partition \
   bin/holo-partsets \
   bin/holo-readonly \
-  bin/holo-verity \
   $(EMPTY)
 
 RENAMED_LIBX := \
