@@ -7,7 +7,7 @@ BINARIES := $(patsubst %.in,%,$(BINARIES_IN))
 # actions used to configure the well-known boot requests such as:
 # reboot reboot-other update (for example). This allows things like
 # steam and the plasma UI to request those update modes safely.
-SUIDBINS := bin/holo-set-bootmode
+SUIDBINS := bin/steamos-set-bootmode
 COMPLETIONS := $(wildcard completions/*)
 SERVICES_IN := $(wildcard systemd/*.service.in)
 SERVICES := $(patsubst %.in,%,$(SERVICES_IN))
@@ -17,14 +17,12 @@ ALIAS     := $(sbindir)/holo-alias
 
 all: $(BINARIES) $(SERVICES) $(SUIDBINS)
 
-bin/holo-set-bootmode: bin/holo-set-bootmode.c
+bin/steamos-set-bootmode: bin/steamos-set-bootmode.c
 	$(CC) -Wall -Wextra $^ -DBINDIR=\"$(bindir)\" -o $@
 
-aliases:
-	@install -d $(DESTDIR)$(sbindir)
+aliases: $(BINARIES)
 	@(for X in $(BOOTMODES); \
 	  do ln -svf $(ALIAS) $(DESTDIR)$(sbindir)/$$X; done)
-	@ln -svf $(ALIAS) $(DESTDIR)$(sbindir)/steamos-set-bootmode
 
 install: all aliases
 	install -d $(DESTDIR)$(sbindir)

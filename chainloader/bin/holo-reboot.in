@@ -126,10 +126,10 @@ do
         fi
 
         holo-factory-reset-config
-        @sbindir@/holo-set-bootmode reboot
+        @sbindir@/steamos-set-bootmode reboot
     elif [[ "$1" =~ ^--reboot-other$ ]]
     then
-        @sbindir@/holo-set-bootmode ${1:2}
+        @sbindir@/steamos-set-bootmode ${1:2}
     elif [[ "$1" =~ ^--next$ ]]
     then
         shift
