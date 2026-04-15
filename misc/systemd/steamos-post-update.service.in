@@ -18,7 +18,7 @@ ConditionPathExists=/var/lib/steamos-atomupd/system-updated
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=@libexecdir@/holo/holo-post-update
+ExecStart=@libexecdir@/steamos/steamos-post-update
 ExecStart=rm -f /var/lib/steamos-atomupd/system-updated
 
 [Install]
