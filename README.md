@@ -33,7 +33,6 @@ Content
  * misc: Set of features
  * offload: Set of mount targets for read-write partitions
  * plymouth: Script to show logging messages on boot screen
- * settings-importer: First-boot settings importer
  * swap: Configuration to create the swap file at startup and use it afterwards
 
 
