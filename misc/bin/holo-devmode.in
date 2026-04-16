@@ -58,7 +58,7 @@ usage() {
   echo "  Skips interactive confirmation"
   echo ""
   echo "If you wish to re-enable readonly mode after using this script, you can use the"
-  echo "\"steamos-readonly enable\" command.  This does not undo changes performed"
+  echo "\"holo-readonly enable\" command.  This does not undo changes performed"
   echo "while in dev mode."
   echo ""
   echo "See also \`steamos-unminimize\`"
@@ -74,11 +74,11 @@ enable_devmode() {
 
   out ""
 
-  # don't bother running steamos-readonly disable again.
+  # don't bother running holo-readonly disable again.
   # if it's already writeable, produces concerning spew.
-  if steamos-readonly status >/dev/null 2>&1; then
+  if holo-readonly status >/dev/null 2>&1; then
     emsg "Disabling read-only mode"
-    steamos-readonly disable
+    holo-readonly disable
   fi
 
   # Fix keyring
@@ -106,7 +106,7 @@ enable_devmode() {
 # ie. we are writeable and we know
 # we have restored the packages on this install
 status() {
-  if ! steamos-readonly status >/dev/null 2>&1 && [[ -f "$TOUCHFILE" ]]; then
+  if ! holo-readonly status >/dev/null 2>&1 && [[ -f "$TOUCHFILE" ]]; then
     echo "enabled"
   else
     echo "disabled"
