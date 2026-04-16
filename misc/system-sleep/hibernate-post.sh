@@ -13,9 +13,9 @@ case ${1:-} in
     case "$op" in
       hibernate)
         logger "system-sleep: Running hibernate cleanup after $op"
-        /usr/lib/steamos/hibernate-swap-helper.sh cleanup 2>&1 | logger
+        /usr/lib/holo/hibernate-swap-helper.sh cleanup 2>&1 | logger
         logger "system-sleep: Reset boot counter after $op"
-        /usr/bin/steamos-bootconf --set boot-attempts 0 2>&1 | logger
+        /usr/bin/holo-bootconf --set boot-attempts 0 2>&1 | logger
         ;;
     esac
     ;;
