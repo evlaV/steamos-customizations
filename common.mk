@@ -139,9 +139,12 @@ ATOMIC_UPDATE_CONF_D := $(sysconfdir)/atomic-update.conf.d
 # Directory for atomic-update-keep.conf file
 RAUC_LIBDIR := $(libdir)/rauc/
 
+# Directory used to save atomupd related files, like the index file for the self seed
+ATOMUPD_VARDIR := /var/lib/steamos-atomupd
+
 # When applying an update, this is the directory where the edited /etc files
 # will be backed up
-ETC_BACKUP_DIR := /var/lib/steamos-atomupd/etc_backup
+ETC_BACKUP_DIR := $(ATOMUPD_VARDIR)/etc_backup
 
 # NOTE: Don't use the semicolon as a separator for sed because it will
 # clash with the semicolons used in the variants list
@@ -179,6 +182,7 @@ ETC_BACKUP_DIR := /var/lib/steamos-atomupd/etc_backup
 	  -e 's|@holo_booted_slot_sync_trigger@|$(HOLO_BOOTED_SLOT_SYNC_TRIGGER)|g' \
 	  -e 's|@atomic_update_conf_d@|$(ATOMIC_UPDATE_CONF_D)|g' \
 	  -e 's|@rauc_libdir@|$(RAUC_LIBDIR)|g' \
+	  -e 's|@atomupd_vardir@|$(ATOMUPD_VARDIR)|g' \
 	  -e 's|@etc_backup_dir@|$(ETC_BACKUP_DIR)|g' \
 	  $< > $@
 	@if grep -q '@[[:alnum:]_]+@' $@; then \

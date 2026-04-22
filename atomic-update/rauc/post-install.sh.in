@@ -25,6 +25,7 @@ PARTSETS_RELDIR=@partsets_reldir@
 ROOTHASH_RELPATH=@roothash_relpath@
 RAUC_RUNTIME_DIR=@rauc_runtime_dir@
 REBOOT_FOR_UPDATE=@reboot_for_update@
+ATOMUPD_VARDIR=@atomupd_vardir@
 
 HOLO_BOOTED_SLOT_SYNC_TRIGGER=@holo_booted_slot_sync_trigger@
 
@@ -224,9 +225,9 @@ mount "$VAR_DEVICE_OTHER" /mnt/var
 
 # Remove the old rootfs index to ensure that we either have the correct one
 # or that we don't have it at all.
-rm -f /mnt/var/lib/steamos-atomupd/rootfs.caibx
-mkdir -p /mnt/var/lib/steamos-atomupd
-cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/var/lib/steamos-atomupd/rootfs.caibx || \
+rm -f /mnt/"$ATOMUPD_VARDIR"/rootfs.caibx
+mkdir -p /mnt/"$ATOMUPD_VARDIR"
+cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/"$ATOMUPD_VARDIR"/rootfs.caibx || \
     warn "Failed to copy the rootfs seed index file"
 umount /mnt/var
 umount /mnt
