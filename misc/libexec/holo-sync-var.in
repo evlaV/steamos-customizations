@@ -21,7 +21,12 @@
 #  option.
 #
 #  Usage:
+#  holo-sync-var --dry-run [all|catchup]
 #  holo-sync-var <all|catchup>
+#
+#  holo-sync-var --dry-run [all|catchup] - Reports which /etc changes would not be
+#    preserved after an update. Defaults to "all" behaviour when no sync type is
+#    given.
 #
 #  holo-sync-var all - Syncs changes from self /var, including the /etc overlay, to
 #    the other partition. Generating also a backup of the /etc files
@@ -34,6 +39,7 @@ set -u
 
 ERR=0 # the error code returned by this script
 BACKUP_TEMP_DIR= # temporary directory used to store the /etc backup
+DRY_RUN=false
 
 ETC_OVERLAY_ABSDIR=@etc_overlay_absdir@
 ETC_BACKUP_DIR=@etc_backup_dir@
@@ -41,6 +47,7 @@ ATOMIC_UPDATE_CONF_D=@atomic_update_conf_d@
 RAUC_LIBDIR=@rauc_libdir@
 
 ATOMIC_UPDATE_KEEP_CONF="atomic-update-keep.conf"
+ETC_FILES_TO_DELETE=(os-release rauc pacman.d/gnupg)
 HOLO_BOOTED_SLOT_SYNC_TRIGGER=@holo_booted_slot_sync_trigger@
 
 #
@@ -68,48 +75,54 @@ warn() { echo >&2 "Warning:" "$@"; }
 err () { echo >&2 "Error:" "$@"; ERR=1; }
 fail() { echo >&2 "Error:" "$@"; exit 1; }
 
-# Make sure we have other mounted, otherwise bail
-if ! mountpoint -q /mnt; then
-    fail "/mnt is not mounted. Bailing."
-fi
-
-if ! mountpoint -q /mnt/var; then
-    fail "/mnt/var is not mounted. Bailing."
-fi
-
 # Check which operations we are doing, otherwise print usage
-SYNCTYPE=
+SYNCTYPE=all
 
-case $1 in
+case "${1:-}" in
+    --dry-run)
+        DRY_RUN=true
+        SYNCTYPE="${2:-$SYNCTYPE}"
+        ;;
     all|catchup)
         SYNCTYPE=$1
         ;;
     *)
-        fail "Sync type must be specified, either all or catchup"
+        fail "Unexpected option provided. Usage: holo-sync-var <all|catchup>"
         ;;
 esac
 
-declare BOOTED_SLOT=$(holo-bootconf this-image)
-if [ -z "$BOOTED_SLOT" ]; then
-    BOOTED_SLOT=$(cat ${HOLO_BOOTED_SLOT_SYNC_TRIGGER})
+if ! $DRY_RUN; then
+    # Make sure we have other mounted, otherwise bail
+    if ! mountpoint -q /mnt; then
+        fail "/mnt is not mounted. Bailing."
+    fi
+
+    if ! mountpoint -q /mnt/var; then
+        fail "/mnt/var is not mounted. Bailing."
+    fi
+
+    declare BOOTED_SLOT=$(holo-bootconf this-image)
+    if [ -z "$BOOTED_SLOT" ]; then
+	BOOTED_SLOT=$(cat ${HOLO_BOOTED_SLOT_SYNC_TRIGGER})
+    fi
+    UPDATED_SLOT=
+
+    log "Booted into slot $BOOTED_SLOT"
+
+    case $BOOTED_SLOT in
+        A)
+            UPDATED_SLOT=B
+            ;;
+        B)
+            UPDATED_SLOT=A
+            ;;
+        *)
+            fail "Booted Slot is neither A nor B. Bailing."
+            ;;
+    esac
+
+    log "Update slot candidate is $UPDATED_SLOT"
 fi
-UPDATED_SLOT=
-
-log "Booted into slot $BOOTED_SLOT"
-
-case $BOOTED_SLOT in
-    A)
-        UPDATED_SLOT=B
-        ;;
-    B)
-        UPDATED_SLOT=A
-        ;;
-    *)
-        fail "Booted Slot is neither A nor B. Bailing."
-        ;;
-esac
-
-log "Update slot candidate is $UPDATED_SLOT"
 
 remove_old_files() {
     local dir=$1
@@ -239,6 +252,80 @@ keep_previous_etc_copy() {
     fi
 }
 
+build_etc_rsync_config() {
+    local config
+    config=$(mktemp --tmpdir "etc_config.XXXXXX")
+    if [ -z "${config}" ]; then
+        warn "Failed to create a temporary file for rsync"
+        return 1
+    fi
+    # Remove the leading "/etc" because we are syncing those files from
+    # the overlayfs and not directly from "/etc".
+    sed 's#^/etc##' "${RAUC_LIBDIR}/${ATOMIC_UPDATE_KEEP_CONF}" >> "${config}"
+
+    # Apart from the default config file, we also include all the eventual
+    # user defined configuration files
+    for file in "${ATOMIC_UPDATE_CONF_D}"/*.conf; do
+        if [ -f "${file}" ]; then
+            log "Keeping user defined files from '${file}'"
+            printf "\n%s" "$(sed 's#^/etc##' "${file}")" >> "${config}"
+        fi
+    done
+    echo "${config}"
+}
+
+rsync_etc_overlay() {
+    local src=$1
+    local dst=$2
+    local extra_opts=${3:-}
+    local compare_dest=${4:-}
+    local dry_run=${5:-false}
+    local config
+    local extra_args=()
+
+    config=$(build_etc_rsync_config) || return 1
+
+    if [ -n "${compare_dest}" ]; then
+        extra_args+=(--compare-dest="${compare_dest}")
+    fi
+
+    if $dry_run; then
+        extra_args+=(--dry-run --out-format="%i %n")
+    fi
+
+    log "Running rsync with the following config file:"
+    log "$(cat "${config}")"
+
+    # `-rlpgoD` is `--archive` without the `--times` option. We don't care about the
+    # modification times, just the content.
+    # `-HA` to preserve hard links, ACLs.
+    # `--compare-dest` allows us to synchronize only the files that actually changed.
+    # `--prune-empty-dirs` plus `--include="*/"` allow us to retain the
+    # directory structure while excluding empty directories.
+    # `--include-from="${config}"` is used to list all the files that we
+    # want to preserve.
+    # `--exclude="*"` is the final catch-all, to exclude all the files that
+    # were not explicitly listed in the config file.
+    if ! rsync \
+        -rlpgoDHA \
+        --delete \
+        --one-file-system \
+        --checksum \
+        --prune-empty-dirs \
+        "${extra_args[@]}" \
+        ${extra_opts:-} \
+        --include="*/" \
+        --include-from="${config}" \
+        --exclude="*" \
+        "${src}/" "${dst}/"; then
+
+        rm -f "${config}"
+        return 1
+    fi
+
+    rm -f "${config}"
+}
+
 sync_var_mountpoints() {
     local src=$1
     local dst=$2
@@ -248,7 +335,6 @@ sync_var_mountpoints() {
     # changes the sysroot from "/" to "/var".
     local etc_overlay_in_var=${ETC_OVERLAY_ABSDIR#"/var"}
     local upper_dir="${etc_overlay_in_var}/upper"
-    local config
 
     # If we are not going to take new backups, we preserve the existing $ETC_BACKUP_DIR
     # in the destination, by explicitly excluding it from the delete operation
@@ -291,30 +377,11 @@ sync_var_mountpoints() {
         return 1
     fi
 
-    config=$(mktemp --tmpdir "etc_config.XXXXXX")
-    if [ -z "${config}" ]; then
-        warn "Failed to create a temporary file for rsync"
-        return 1
-    fi
-
-    # Remove the leading "/etc" because we are syncing those files from
-    # the overlayfs and not directly from "/etc".
-    sed 's#^/etc##' "${RAUC_LIBDIR}/${ATOMIC_UPDATE_KEEP_CONF}" >> "${config}"
-
     # If we are not going to take new backups, we preserve the existing /etc/previous
     # in the destination, by explicitly excluding it from the delete operation
     if [ $SYNCTYPE == "catchup" ]; then
         RSYNC_ETC_EXTRA_OPTS="--exclude=/previous"
     fi
-
-    # Apart from the default config file, we also include all the eventual
-    # user defined configuration files
-    for file in "${ATOMIC_UPDATE_CONF_D}"/*.conf; do
-        if [ -f "${file}" ]; then
-            log "Keeping user defined files from '${file}'"
-            printf "\n%s" "$(sed 's#^/etc##' "${file}")" >> "${config}"
-        fi
-    done
 
     # Create both upper and work directory, so holo-chroot works correctly.
     #
@@ -323,38 +390,13 @@ sync_var_mountpoints() {
     mkdir -p "${dst}${upper_dir}"
     mkdir -p "${dst}${etc_overlay_in_var}/work"
 
-    log "Running rsync with the following config file:"
-    log "$(cat "${config}")"
-
-    # `-rlpgoD` is `--archive` without the `--times` option. We don't care about the
-    # modification times, just the content.
-    # `-HA` to preserve hard links, ACLs.
-    # `--compare-dest` allows us to synchronize only the files that actually changed.
-    # `--prune-empty-dirs` plus `--include="*/"` allow us to retain the
-    # directory structure while excluding empty directories.
-    # `--include-from="${config}"` is used to list all the files that we
-    # want to preserve.
-    # `--exclude="*"` is the final catch-all, to exclude all the files that
-    # were not explicitly listed in the config file.
-    if ! rsync \
-        -rlpgoDHA \
-        --delete \
-        --one-file-system \
-        --checksum \
-        --prune-empty-dirs \
-        --compare-dest="${lower_dir}" \
-        ${RSYNC_ETC_EXTRA_OPTS:-} \
-        --include="*/" \
-        --include-from="${config}" \
-        --exclude="*" \
-        "${src}${upper_dir}/" "${dst}${upper_dir}/"; then
+    if ! rsync_etc_overlay \
+        "${src}${upper_dir}" "${dst}${upper_dir}" \
+        "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}"; then
 
         warn "rsync failed to sync the /etc changes"
-        rm -f "${config}"
         return 1
     fi
-
-    rm -f "${config}"
 
     # Force the removal of user changes from `/etc/os-release`, because that
     # file is used by the Steam client to show the current image version, and
@@ -367,9 +409,9 @@ sync_var_mountpoints() {
     # little sense to have keyring around. People will either use
     # holo-devmode enable - which will regenerate it for them, or if they
     # manually flip off the RO mode, they can issue pacman-key manually.
-    rm -rf "$dst/lib/overlays/etc/upper/os-release" || :
-    rm -rf "$dst/lib/overlays/etc/upper/rauc" || :
-    rm -rf "$dst/lib/overlays/etc/upper/pacman.d/gnupg" || :
+    for path in "${ETC_FILES_TO_DELETE[@]}"; do
+        rm -rf "${dst}${upper_dir}/${path}" || :
+    done
 
     # Explicitly remove and mask/whiteout the .updated files in /var and /etc
     # respectively. Counter intuitively The timestamp stored is for the /usr
@@ -382,6 +424,82 @@ sync_var_mountpoints() {
     rm -rf "$dst/lib/overlays/etc/upper/.updated" || :
     mknod -m 000 "$dst/lib/overlays/etc/upper/.updated" c 0 0 || :
 }
+
+report_unpreserved_etc_files() {
+    local src=$1
+    local etc_overlay_in_var=${ETC_OVERLAY_ABSDIR#"/var"}
+    local upper_dir="${etc_overlay_in_var}/upper"
+    local dryrun_dest
+    local rsync_output
+    local find_exclude=()
+    local all_files
+    local RSYNC_ETC_EXTRA_OPTS=
+    local kept_files
+    local discarded
+
+    if [ ! -d "${src}${upper_dir}" ]; then
+        log "No user /etc changes found in ${src} (upper dir does not exist)."
+        return 0
+    fi
+
+    # Collect all files in the source upper dir.
+    # In catchup mode, previous/ is left untouched so omit it from the report.
+    # In all mode, previous/ is deleted by --delete so include it.
+    if [ "$SYNCTYPE" == "catchup" ]; then
+        find_exclude+=(-not -path "${src}${upper_dir}/previous"
+                     -not -path "${src}${upper_dir}/previous/*")
+        RSYNC_ETC_EXTRA_OPTS="--exclude=/previous"
+    fi
+    all_files=$(find "${src}${upper_dir}" -not -type d "${find_exclude[@]}" -printf "%P\n" | sort)
+
+    if [ -z "${all_files}" ]; then
+        log "No user /etc changes found in ${src}."
+        return 0
+    fi
+
+    dryrun_dest=$(mktemp -d --tmpdir "holo-sync-var-dryrun.XXXXXX")
+
+    if ! rsync_output=$(rsync_etc_overlay \
+        "${src}${upper_dir}" "${dryrun_dest}" \
+        "${RSYNC_ETC_EXTRA_OPTS:-}" "" true); then
+
+        err "rsync failed while analysing /etc changes for dry-run"
+        rm -rf "${dryrun_dest}"
+        return 1
+    fi
+
+    rm -rf "${dryrun_dest}"
+
+    kept_files=$(echo "${rsync_output}" | awk '/^>f/ {print $2}' | sort)
+
+    # Simulate the force-deletions holo-sync-var performs after rsync (see ETC_FILES_TO_DELETE).
+    for path in "${ETC_FILES_TO_DELETE[@]}"; do
+        kept_files=$(printf '%s\n' "${kept_files}" | grep -vE "^${path}(/.*)?$" || :)
+    done
+
+    # Check which files would not be preserved.
+    if [ -z "${kept_files}" ]; then
+        discarded="${all_files}"
+    else
+        discarded=$(comm -23 \
+            <(printf '%s\n' "${all_files}") \
+            <(printf '%s\n' "${kept_files}"))
+    fi
+
+    if [ -z "${discarded}" ]; then
+        log "All user /etc changes in ${src} would be preserved after an update."
+    else
+        log "The following /etc files in ${src} would not be preserved after an update:"
+        while IFS= read -r f; do
+            printf "  - /etc/%s\n" "$f" >&2
+        done <<< "${discarded}"
+    fi
+}
+
+if $DRY_RUN; then
+    report_unpreserved_etc_files /var || ERR=$?
+    exit $ERR
+fi
 
 VAR_FROM=/var
 
