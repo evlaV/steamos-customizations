@@ -7,7 +7,6 @@ LIBRARIES_EXEC := $(patsubst %.in,%,$(LIBRARIES_EXEC_IN))
 COMPLETIONS := $(wildcard completions/*)
 REPART_CONFIG := $(wildcard repart.d/*.conf)
 SYSCTL_CONFIG := $(wildcard sysctl.d/*.conf)
-SDDM_CONFIG := sddm.conf.d/holo.conf
 LODIND_CONFIG := $(wildcard journald.conf.d/*.conf)
 SLEEP_CONFIG := $(wildcard sleep.conf.d/*.conf)
 SLEEP_SCRIPTS := $(wildcard system-sleep/*)
@@ -73,8 +72,6 @@ install: all aliases
 	install -m 0644 $(REPART_CONFIG) $(DESTDIR)$(libdir)/repart.d
 	install -d $(DESTDIR)$(libdir)/sysctl.d/
 	install -m 0644 $(SYSCTL_CONFIG) $(DESTDIR)$(libdir)/sysctl.d/
-	install -d $(DESTDIR)$(libdir)/sddm/sddm.conf.d/
-	install -m 0644 $(SDDM_CONFIG) $(DESTDIR)$(libdir)/sddm/sddm.conf.d
 	install -d $(DESTDIR)$(libdir)/systemd/journald.conf.d/
 	install -m 0644 $(LODIND_CONFIG) $(DESTDIR)$(libdir)/systemd/journald.conf.d/
 	install -d $(DESTDIR)$(libdir)/systemd/sleep.conf.d/
