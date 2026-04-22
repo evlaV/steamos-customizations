@@ -38,6 +38,7 @@ BACKUP_TEMP_DIR= # temporary directory used to store the /etc backup
 ETC_OVERLAY_ABSDIR=@etc_overlay_absdir@
 ETC_BACKUP_DIR=@etc_backup_dir@
 ATOMIC_UPDATE_CONF_D=@atomic_update_conf_d@
+ATOMUPD_VARDIR=@atomupd_vardir@
 RAUC_LIBDIR=@rauc_libdir@
 
 ATOMIC_UPDATE_KEEP_CONF="atomic-update-keep.conf"
@@ -250,10 +251,11 @@ sync_var_mountpoints() {
     local upper_dir="${etc_overlay_in_var}/upper"
     local config
 
-    # If we are not going to take new backups, we preserve the existing $ETC_BACKUP_DIR
-    # in the destination, by explicitly excluding it from the delete operation
+    # If this is a catchup sync, we preserve the existing @atomupd_vardir@ directory from the destination.
+    # That's because this directory should already have the correct rootfs.caibx file and the
+    # /etc backups, and we don't want to overwrite them.
     if [ $SYNCTYPE == "catchup" ]; then
-        RSYNC_VAR_EXTRA_OPTS="--exclude=${ETC_BACKUP_DIR#"/var"}"
+        RSYNC_VAR_EXTRA_OPTS="--exclude=${ATOMUPD_VARDIR#"/var"}"
     fi
 
     # We exclude the directories /var/lib/{dkms,modules,pacman}, as they don't
