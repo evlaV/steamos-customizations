@@ -21,7 +21,12 @@
 #  option.
 #
 #  Usage:
+#  holo-sync-var --dry-run [all|catchup]
 #  holo-sync-var <all|catchup>
+#
+#  holo-sync-var --dry-run [all|catchup] - Reports which /etc changes would not be
+#    preserved after an update. Defaults to "all" behaviour when no sync type is
+#    given.
 #
 #  holo-sync-var all - Syncs changes from self /var, including the /etc overlay, to
 #    the other partition. Generating also a backup of the /etc files
@@ -34,6 +39,7 @@ set -u
 
 ERR=0 # the error code returned by this script
 BACKUP_TEMP_DIR= # temporary directory used to store the /etc backup
+DRY_RUN=false
 
 ETC_OVERLAY_ABSDIR=@etc_overlay_absdir@
 ETC_BACKUP_DIR=@etc_backup_dir@
@@ -70,48 +76,22 @@ warn() { echo >&2 "Warning:" "$@"; }
 err () { echo >&2 "Error:" "$@"; ERR=1; }
 fail() { echo >&2 "Error:" "$@"; exit 1; }
 
-# Make sure we have other mounted, otherwise bail
-if ! mountpoint -q /mnt; then
-    fail "/mnt is not mounted. Bailing."
-fi
-
-if ! mountpoint -q /mnt/var; then
-    fail "/mnt/var is not mounted. Bailing."
-fi
-
 # Check which operations we are doing, otherwise print usage
-SYNCTYPE=
+SYNCTYPE=all
 
-case $1 in
-    all|catchup)
-        SYNCTYPE=$1
-        ;;
-    *)
-        fail "Sync type must be specified, either all or catchup"
-        ;;
-esac
-
-declare BOOTED_SLOT=$(holo-bootconf this-image)
-if [ -z "$BOOTED_SLOT" ]; then
-    BOOTED_SLOT=$(cat ${HOLO_BOOTED_SLOT_SYNC_TRIGGER})
-fi
-UPDATED_SLOT=
-
-log "Booted into slot $BOOTED_SLOT"
-
-case $BOOTED_SLOT in
-    A)
-        UPDATED_SLOT=B
-        ;;
-    B)
-        UPDATED_SLOT=A
-        ;;
-    *)
-        fail "Booted Slot is neither A nor B. Bailing."
-        ;;
-esac
-
-log "Update slot candidate is $UPDATED_SLOT"
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run)
+            DRY_RUN=true
+            ;;
+        all|catchup)
+            SYNCTYPE=$arg
+            ;;
+        *)
+            fail "Unexpected option provided. Usage: holo-sync-var [--dry-run] <all|catchup>"
+            ;;
+    esac
+done
 
 remove_old_files() {
     local dir=$1
@@ -268,6 +248,7 @@ rsync_etc_overlay() {
     local dst=$2
     local extra_opts=${3:-}
     local compare_dest=${4:-}
+    local dry_run=${5:-false}
     local config
     local extra_args=()
 
@@ -275,6 +256,10 @@ rsync_etc_overlay() {
 
     if [ -n "${compare_dest}" ]; then
         extra_args+=(--compare-dest="${compare_dest}")
+    fi
+
+    if $dry_run; then
+        extra_args+=(--dry-run --out-format="%i %n")
     fi
 
     log "Running rsync with the following config file:"
@@ -410,22 +395,130 @@ sync_var_mountpoints() {
     mknod -m 000 "$dst/lib/overlays/etc/upper/.updated" c 0 0 || :
 }
 
-VAR_FROM=/var
+report_unpreserved_etc_files() {
+    local src=$1
+    local etc_overlay_in_var=${ETC_OVERLAY_ABSDIR#"/var"}
+    local upper_dir="${etc_overlay_in_var}/upper"
+    local dryrun_dest
+    local rsync_output
+    local find_exclude=()
+    local all_files
+    local RSYNC_ETC_EXTRA_OPTS=
+    local kept_files
+    local discarded
 
-fsfreeze -f "$VAR_FROM"
-sync_var_mountpoints "$VAR_FROM" /mnt/var /mnt/etc || \
-    err "Failed to sync var partitions"
-
-if [ $SYNCTYPE == "all" ]; then
-    if [ $ERR == 0 ]; then
-        keep_previous_etc_copy "$VAR_FROM" /mnt/var || \
-            warn "Failed to copy the /etc changes to /etc/previous"
-
-        backup_etc_changes "$VAR_FROM" /mnt/var || \
-            warn "Failed to create an /etc backup"
+    if [ ! -d "${src}${upper_dir}" ]; then
+        log "No user /etc changes found in ${src} (upper dir does not exist)."
+        return 0
     fi
-fi
 
-fsfreeze -u "$VAR_FROM"
+    # Collect all files in the source upper dir.
+    # In catchup mode, previous/ is left untouched so omit it from the report.
+    # In all mode, previous/ is deleted by --delete so include it.
+    if [ "$SYNCTYPE" == "catchup" ]; then
+        find_exclude+=(-not -path "${src}${upper_dir}/previous"
+                     -not -path "${src}${upper_dir}/previous/*")
+        RSYNC_ETC_EXTRA_OPTS="--exclude=/previous"
+    fi
+    all_files=$(find "${src}${upper_dir}" -not -type d "${find_exclude[@]}" -printf "%P\n" | sort)
+
+    if [ -z "${all_files}" ]; then
+        log "No user /etc changes found in ${src}."
+        return 0
+    fi
+
+    dryrun_dest=$(mktemp -d --tmpdir "holo-sync-var-dryrun.XXXXXX")
+
+    if ! rsync_output=$(rsync_etc_overlay \
+        "${src}${upper_dir}" "${dryrun_dest}" \
+        "${RSYNC_ETC_EXTRA_OPTS:-}" "" true); then
+
+        err "rsync failed while analysing /etc changes for dry-run"
+        rm -rf "${dryrun_dest}"
+        return 1
+    fi
+
+    rm -rf "${dryrun_dest}"
+
+    kept_files=$(echo "${rsync_output}" | awk '/^>f/ {print $2}' | sort)
+
+    # Simulate the force-deletions holo-sync-var performs after rsync (see ETC_FILES_TO_DELETE).
+    for path in "${ETC_FILES_TO_DELETE[@]}"; do
+        kept_files=$(printf '%s\n' "${kept_files}" | grep -vE "^${path}(/.*)?$" || :)
+    done
+
+    # Check which files would not be preserved.
+    if [ -z "${kept_files}" ]; then
+        discarded="${all_files}"
+    else
+        discarded=$(comm -23 \
+            <(printf '%s\n' "${all_files}") \
+            <(printf '%s\n' "${kept_files}"))
+    fi
+
+    log $'\n----------\n'
+
+    if [ -z "${discarded}" ]; then
+        log "All user /etc changes in ${src} would be preserved after an update."
+    else
+        log "The following /etc files in ${src} would not be preserved after an update:"
+        while IFS= read -r f; do
+            log "/etc/$f"
+        done <<< "${discarded}"
+    fi
+}
+
+if $DRY_RUN; then
+    report_unpreserved_etc_files /var || ERR=$?
+else
+    # Make sure we have other mounted, otherwise bail
+    if ! mountpoint -q /mnt; then
+        fail "/mnt is not mounted. Bailing."
+    fi
+
+    if ! mountpoint -q /mnt/var; then
+        fail "/mnt/var is not mounted. Bailing."
+    fi
+
+    declare BOOTED_SLOT=$(holo-bootconf this-image)
+    if [ -z "$BOOTED_SLOT" ]; then
+        BOOTED_SLOT=$(cat ${HOLO_BOOTED_SLOT_SYNC_TRIGGER})
+    fi
+    UPDATED_SLOT=
+
+    log "Booted into slot $BOOTED_SLOT"
+
+    case $BOOTED_SLOT in
+        A)
+            UPDATED_SLOT=B
+            ;;
+        B)
+            UPDATED_SLOT=A
+            ;;
+        *)
+            fail "Booted Slot is neither A nor B. Bailing."
+            ;;
+    esac
+
+    log "Update slot candidate is $UPDATED_SLOT"
+
+    VAR_FROM=/var
+
+    fsfreeze -f "$VAR_FROM"
+    sync_var_mountpoints "$VAR_FROM" /mnt/var /mnt/etc || \
+        err "Failed to sync var partitions"
+
+    if [ $SYNCTYPE == "all" ]; then
+        if [ $ERR == 0 ]; then
+            keep_previous_etc_copy "$VAR_FROM" /mnt/var || \
+                warn "Failed to copy the /etc changes to /etc/previous"
+
+            backup_etc_changes "$VAR_FROM" /mnt/var || \
+                warn "Failed to create an /etc backup"
+        fi
+    fi
+
+    fsfreeze -u "$VAR_FROM"
+fi
 
 exit $ERR
