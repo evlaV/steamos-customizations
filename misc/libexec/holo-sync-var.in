@@ -42,6 +42,7 @@ ATOMUPD_VARDIR=@atomupd_vardir@
 RAUC_LIBDIR=@rauc_libdir@
 
 ATOMIC_UPDATE_KEEP_CONF="atomic-update-keep.conf"
+ETC_FILES_TO_DELETE=(os-release rauc pacman.d/gnupg)
 HOLO_BOOTED_SLOT_SYNC_TRIGGER=@holo_booted_slot_sync_trigger@
 
 #
@@ -240,6 +241,75 @@ keep_previous_etc_copy() {
     fi
 }
 
+build_etc_rsync_config() {
+    local config
+    config=$(mktemp --tmpdir "etc_config.XXXXXX")
+    if [ -z "${config}" ]; then
+        warn "Failed to create a temporary file for rsync"
+        return 1
+    fi
+    # Remove the leading "/etc" because we are syncing those files from
+    # the overlayfs and not directly from "/etc".
+    sed 's#^/etc##' "${RAUC_LIBDIR}/${ATOMIC_UPDATE_KEEP_CONF}" >> "${config}"
+
+    # Apart from the default config file, we also include all the eventual
+    # user defined configuration files
+    for file in "${ATOMIC_UPDATE_CONF_D}"/*.conf; do
+        if [ -f "${file}" ]; then
+            log "Keeping user defined files from '${file}'"
+            printf "\n%s" "$(sed 's#^/etc##' "${file}")" >> "${config}"
+        fi
+    done
+    echo "${config}"
+}
+
+rsync_etc_overlay() {
+    local src=$1
+    local dst=$2
+    local extra_opts=${3:-}
+    local compare_dest=${4:-}
+    local config
+    local extra_args=()
+
+    config=$(build_etc_rsync_config) || return 1
+
+    if [ -n "${compare_dest}" ]; then
+        extra_args+=(--compare-dest="${compare_dest}")
+    fi
+
+    log "Running rsync with the following config file:"
+    log "$(cat "${config}")"
+
+    # `-rlpgoD` is `--archive` without the `--times` option. We don't care about the
+    # modification times, just the content.
+    # `-HA` to preserve hard links, ACLs.
+    # `--compare-dest` allows us to synchronize only the files that actually changed.
+    # `--prune-empty-dirs` plus `--include="*/"` allow us to retain the
+    # directory structure while excluding empty directories.
+    # `--include-from="${config}"` is used to list all the files that we
+    # want to preserve.
+    # `--exclude="*"` is the final catch-all, to exclude all the files that
+    # were not explicitly listed in the config file.
+    if ! rsync \
+        -rlpgoDHA \
+        --delete \
+        --one-file-system \
+        --checksum \
+        --prune-empty-dirs \
+        "${extra_args[@]}" \
+        ${extra_opts:-} \
+        --include="*/" \
+        --include-from="${config}" \
+        --exclude="*" \
+        "${src}/" "${dst}/"; then
+
+        rm -f "${config}"
+        return 1
+    fi
+
+    rm -f "${config}"
+}
+
 sync_var_mountpoints() {
     local src=$1
     local dst=$2
@@ -249,7 +319,6 @@ sync_var_mountpoints() {
     # changes the sysroot from "/" to "/var".
     local etc_overlay_in_var=${ETC_OVERLAY_ABSDIR#"/var"}
     local upper_dir="${etc_overlay_in_var}/upper"
-    local config
 
     # If this is a catchup sync, we preserve the existing @atomupd_vardir@ directory from the destination.
     # That's because this directory should already have the correct rootfs.caibx file and the
@@ -293,30 +362,11 @@ sync_var_mountpoints() {
         return 1
     fi
 
-    config=$(mktemp --tmpdir "etc_config.XXXXXX")
-    if [ -z "${config}" ]; then
-        warn "Failed to create a temporary file for rsync"
-        return 1
-    fi
-
-    # Remove the leading "/etc" because we are syncing those files from
-    # the overlayfs and not directly from "/etc".
-    sed 's#^/etc##' "${RAUC_LIBDIR}/${ATOMIC_UPDATE_KEEP_CONF}" >> "${config}"
-
     # If we are not going to take new backups, we preserve the existing /etc/previous
     # in the destination, by explicitly excluding it from the delete operation
     if [ $SYNCTYPE == "catchup" ]; then
         RSYNC_ETC_EXTRA_OPTS="--exclude=/previous"
     fi
-
-    # Apart from the default config file, we also include all the eventual
-    # user defined configuration files
-    for file in "${ATOMIC_UPDATE_CONF_D}"/*.conf; do
-        if [ -f "${file}" ]; then
-            log "Keeping user defined files from '${file}'"
-            printf "\n%s" "$(sed 's#^/etc##' "${file}")" >> "${config}"
-        fi
-    done
 
     # Create both upper and work directory, so holo-chroot works correctly.
     #
@@ -325,38 +375,13 @@ sync_var_mountpoints() {
     mkdir -p "${dst}${upper_dir}"
     mkdir -p "${dst}${etc_overlay_in_var}/work"
 
-    log "Running rsync with the following config file:"
-    log "$(cat "${config}")"
-
-    # `-rlpgoD` is `--archive` without the `--times` option. We don't care about the
-    # modification times, just the content.
-    # `-HA` to preserve hard links, ACLs.
-    # `--compare-dest` allows us to synchronize only the files that actually changed.
-    # `--prune-empty-dirs` plus `--include="*/"` allow us to retain the
-    # directory structure while excluding empty directories.
-    # `--include-from="${config}"` is used to list all the files that we
-    # want to preserve.
-    # `--exclude="*"` is the final catch-all, to exclude all the files that
-    # were not explicitly listed in the config file.
-    if ! rsync \
-        -rlpgoDHA \
-        --delete \
-        --one-file-system \
-        --checksum \
-        --prune-empty-dirs \
-        --compare-dest="${lower_dir}" \
-        ${RSYNC_ETC_EXTRA_OPTS:-} \
-        --include="*/" \
-        --include-from="${config}" \
-        --exclude="*" \
-        "${src}${upper_dir}/" "${dst}${upper_dir}/"; then
+    if ! rsync_etc_overlay \
+        "${src}${upper_dir}" "${dst}${upper_dir}" \
+        "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}"; then
 
         warn "rsync failed to sync the /etc changes"
-        rm -f "${config}"
         return 1
     fi
-
-    rm -f "${config}"
 
     # Force the removal of user changes from `/etc/os-release`, because that
     # file is used by the Steam client to show the current image version, and
@@ -369,9 +394,9 @@ sync_var_mountpoints() {
     # little sense to have keyring around. People will either use
     # holo-devmode enable - which will regenerate it for them, or if they
     # manually flip off the RO mode, they can issue pacman-key manually.
-    rm -rf "$dst/lib/overlays/etc/upper/os-release" || :
-    rm -rf "$dst/lib/overlays/etc/upper/rauc" || :
-    rm -rf "$dst/lib/overlays/etc/upper/pacman.d/gnupg" || :
+    for path in "${ETC_FILES_TO_DELETE[@]}"; do
+        rm -rf "${dst}${upper_dir}/${path}" || :
+    done
 
     # Explicitly remove and mask/whiteout the .updated files in /var and /etc
     # respectively. Counter intuitively The timestamp stored is for the /usr
