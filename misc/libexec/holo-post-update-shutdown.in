@@ -16,6 +16,9 @@
 # This script is run during shutdown after an OS update.
 # See holo-post-update-shutdown.service for details.
 
+set -e
+set -u
+
 SYMLINKS_DIR=@udev_symlinks_absdir@
 HOLO_BOOTED_SLOT_SYNC_TRIGGER=@holo_booted_slot_sync_trigger@
 
