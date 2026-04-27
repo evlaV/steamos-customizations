@@ -1,6 +1,6 @@
 #!/bin/bash
-# -*- mode: sh; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
-# vim: et sts=4 sw=4
+# -*- mode: sh; indent-tabs-mode: nil; sh-basic-offset: 2; -*-
+# vim: et sts=2 sw=2
 
 #  SPDX-License-Identifier: LGPL-2.1+
 #
