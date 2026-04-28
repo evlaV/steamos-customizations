@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # -*- mode: sh; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
 # vim: et sts=4 sw=4
 
@@ -15,6 +15,9 @@
 
 # This script is run during shutdown after an OS update.
 # See holo-post-update-shutdown.service for details.
+
+set -e
+set -u
 
 SYMLINKS_DIR=@udev_symlinks_absdir@
 HOLO_BOOTED_SLOT_SYNC_TRIGGER=@holo_booted_slot_sync_trigger@
@@ -50,3 +53,12 @@ mount "$VAR_DEVICE_OTHER" /mnt/var
 umount /mnt/var
 umount /mnt
 
+# After executing `holo-sync-var catchup`, we need to run again the migrate finalize install step.
+# We run this even if a part of `holo-sync-var catchup` unexpectedly failed.
+# This ensures that we have the expected files in the new /etc and /var, and that they didn't
+# get overwritten by `holo-sync-var`.
+if ! holo-chroot --partset $UPDATED_SLOT -- holo-finalize-install --no-boot-install \
+  && ! holo-chroot --partset $UPDATED_SLOT -- steamos-finalize-install --no-boot-install
+then
+    warn "Failed to migrate the configuration changes!"
+fi
