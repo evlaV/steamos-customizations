@@ -139,6 +139,37 @@ function migrate_home_steamos_update
 
 }
 
+function migrate_session_config
+{
+    # As part of the steamos -> holo naming transition, the configuration file
+    # used to override the default session type is being renamed from
+    # "zz-steamos-autologin.conf" to "zz-holo-autologin.conf". If this file
+    # already exists on the system, rename it so that the correct file name is
+    # used on the new image. Due to the configuration files being interpreted
+    # in alphabetical order, if we jump back into an older image (prior to the
+    # config file renaming) and wish to make a change the "steamos" variant
+    # will be used, which will take precedence. On swapping back to a new
+    # image, this file will be moved over the original "holo" named variant,
+    # thus retaining the latest desired configuration.
+    #
+    # There is also a temporary file "zzt-steamos-temp-login.conf" that really
+    # shouldn't be about at the point where we are running an update, remove
+    # it if it exists to save issues.
+
+    local conf_dir="/var/lib/overlays/etc/upper/sddm.conf.d/"
+    local old_conf="zz-steamos-autologin.conf"
+    local new_conf="zz-holo-autologin.conf"
+    local temp_conf="zzt-steamos-temp-login.conf"
+
+    if [[ -f "$conf_dir/$old_conf" ]]; then
+        mv "$conf_dir/$old_conf" "$conf_dir/$new_conf" || :
+    fi
+
+    if [[ -f "$conf_dir/$temp_conf" ]]; then
+        rm -f "$conf_dir/$temp_conf" || :
+    fi
+}
+
 function update_pacman_dbpath
 {
     local pacman_conf="/var/lib/overlays/etc/upper/pacman.conf"
@@ -202,6 +233,7 @@ then
     then
         migrate_network
         migrate_home_steamos_update
+        migrate_session_config
         update_pacman_dbpath # DBPath is on the RO rootfs with 3.5+
         cleanup_atomupd_conf
     else
