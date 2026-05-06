@@ -2,8 +2,11 @@
 
 this_image=$(holo-bootconf this-image)
 
+args=(--mount=@rauc_runtime_dir@)
+args+=(--override-boot-slot="$this_image")
+
 if [ "${STEAMOS_CUSTOM_RAUC_CONF-}" ]; then
-    exec /usr/bin/rauc --mount=@rauc_runtime_dir@ --override-boot-slot="$this_image" --conf="${STEAMOS_CUSTOM_RAUC_CONF}" service
-else
-    exec /usr/bin/rauc --mount=@rauc_runtime_dir@ --override-boot-slot="$this_image" service
+    args+=(--conf="${STEAMOS_CUSTOM_RAUC_CONF}")
 fi
+
+exec /usr/bin/rauc "${args[@]}" service
