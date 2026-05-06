@@ -9,4 +9,8 @@ if [ "${STEAMOS_CUSTOM_RAUC_CONF-}" ]; then
     args+=(--conf="${STEAMOS_CUSTOM_RAUC_CONF}")
 fi
 
+if [ "${HOLO_CUSTOM_STORE_PATH-}" ]; then
+    args+=(--confopt="casync:storepath=${HOLO_CUSTOM_STORE_PATH}")
+fi
+
 exec /usr/bin/rauc "${args[@]}" service
