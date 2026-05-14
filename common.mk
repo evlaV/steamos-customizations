@@ -12,9 +12,6 @@ systemdunitsdir := $(libdir)/systemd/system
 completionsdir := $(shell pkg-config --define-variable=prefix=$(prefix) --variable=completionsdir bash-completion 2>/dev/null \
 			  || echo /usr/share/bash-completion/completions/)
 
-# -------- Aliasing wrapper -------- #
-ALIAS := $(sbindir)/holo-alias
-
 # -------- Some tweaks -------- #
 SHELL := /bin/bash
 

@@ -27,40 +27,22 @@ SYSUSERS := $(wildcard sysusers/*)
 UNITS := $(SERVICES) $(MOUNTS)
 CLEANABLE := $(BINARIES) $(LIBRARIES_EXEC) $(UNITS)
 
--include ./renamed.mk
-
-.PHONY: all aliases install binary-aliases libexec-aliases oldlibx-aliases
+.PHONY: all install oldlibx-aliases
 
 all: $(BINARIES) $(LIBRARIES_EXEC) $(UNITS)
-
-libexec-aliases: EXTRA_LINKS := 
-libexec-aliases: IDIR := $(DESTDIR)$(libexecdir)/steamos
-libexec-aliases: $(filter $(RENAMED_LIBX),$(LIBRARIES_EXEC))
-
-binary-aliases: EXTRA_LINKS := mount.holo
-binary-aliases: IDIR := $(DESTDIR)$(sbindir)
-binary-aliases: $(filter $(RENAMED_BINS),$(BINARIES))
 
 oldlibx-aliases: EXTRA_LINKS := 
 oldlibx-aliases: IDIR := $(DESTDIR)$(libexecdir)/steamos
 oldlibx-aliases: libexec/holo-shellutil.sh
 
-binary-aliases libexec-aliases:
-	@install -d $(DESTDIR)$(sbindir)
-	@install -d $(IDIR)
-	@(for X in $(^F) $(EXTRA_LINKS); \
-	  do ln -svf $(ALIAS) $(IDIR)/$${X//holo/steamos}; done)
-
-# this is for non executables (eg libraries) that can't go via holo-alias:
+# this is for non executables (eg libraries) that can't go via steamos-alias:
 oldlibx-aliases:
 	@install -d $(IDIR)
 	@(for X in $(^F) $(EXTRA_LINKS); \
 	  do ln -svf /usr/lib/holo/$$X $(IDIR)/$${X//holo/steamos}; done)
 
-aliases: binary-aliases libexec-aliases oldlibx-aliases
-
 install: HOLO_LIBEXEC := $(filter libexec/holo-%,$(LIBRARIES_EXEC))
-install: all aliases
+install: all oldlibx-aliases
 	install -d $(DESTDIR)$(sbindir)
 	install -m 0755 $(BINARIES) $(DESTDIR)$(sbindir)
 	ln -sfv holo-mount $(DESTDIR)$(sbindir)/mount.holo

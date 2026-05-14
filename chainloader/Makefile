@@ -12,21 +12,13 @@ COMPLETIONS := $(wildcard completions/*)
 SERVICES_IN := $(wildcard systemd/*.service.in)
 SERVICES := $(patsubst %.in,%,$(SERVICES_IN))
 CLEANABLE := $(BINARIES) $(SERVICES) $(SUIDBINS)
-BOOTMODES := $(patsubst %,steamos-%,halt poweroff reboot)
-ALIAS     := $(sbindir)/holo-alias
 
 all: $(BINARIES) $(SERVICES) $(SUIDBINS)
 
 bin/holo-set-bootmode: bin/holo-set-bootmode.c
 	$(CC) -Wall -Wextra $^ -DBINDIR=\"$(bindir)\" -o $@
 
-aliases:
-	@install -d $(DESTDIR)$(sbindir)
-	@(for X in $(BOOTMODES); \
-	  do ln -svf $(ALIAS) $(DESTDIR)$(sbindir)/$$X; done)
-	@ln -svf $(ALIAS) $(DESTDIR)$(sbindir)/steamos-set-bootmode
-
-install: all aliases
+install: all
 	install -d $(DESTDIR)$(sbindir)
 	install -m 0755 $(BINARIES) $(DESTDIR)$(sbindir)
 	for i in holo-halt holo-poweroff; do \
