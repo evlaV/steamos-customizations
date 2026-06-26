@@ -94,6 +94,10 @@ set_efivar_hex() {
     file="$1.$$"
     printf "$fmt" >"$file"
     trap "rm -f $file" 0
+
+    cp "$file" "/sys/firmware/efi/efivars/$1"
+    rm -f "$file"
+    trap - 0
 }
 
 set_efivar_ascii() {
