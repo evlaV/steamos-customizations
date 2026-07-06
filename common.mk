@@ -143,6 +143,9 @@ ATOMUPD_VARDIR := /var/lib/steamos-atomupd
 # will be backed up
 ETC_BACKUP_DIR := $(ATOMUPD_VARDIR)/etc_backup
 
+# Swap file on the home partition
+SWAPFILE=/home/swapfile
+
 # NOTE: Don't use the semicolon as a separator for sed because it will
 # clash with the semicolons used in the variants list
 %: %.in
@@ -181,6 +184,7 @@ ETC_BACKUP_DIR := $(ATOMUPD_VARDIR)/etc_backup
 	  -e 's|@rauc_libdir@|$(RAUC_LIBDIR)|g' \
 	  -e 's|@atomupd_vardir@|$(ATOMUPD_VARDIR)|g' \
 	  -e 's|@etc_backup_dir@|$(ETC_BACKUP_DIR)|g' \
+	  -e 's|@swapfile@|$(SWAPFILE)|g' \
 	  $< > $@
 	@if grep -q '@[[:alnum:]_]+@' $@; then \
 	  echo >&2 "Substitution error!!!"; \
