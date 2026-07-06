@@ -10,6 +10,7 @@ bin/steamos-partition
 bin/steamos-partsets
 bin/steamos-readonly
 bin/steamos-verity
+libexec/holo-create-swapfile
 libexec/steamos-cfs-debugfs-settings
 libexec/steamos-create-homedir
 libexec/steamos-finish-oobe-migration
