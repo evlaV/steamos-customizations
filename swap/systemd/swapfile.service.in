@@ -14,12 +14,12 @@ After=systemd-growfs@home.service
 Before=shutdown.target home-swapfile.swap
 Conflicts=shutdown.target
 ConditionFileIsExecutable=@sbindir@/mkswap
-RequiresMountsFor=/home/swapfile
+RequiresMountsFor=@swapfile@
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=@libexecdir@/holo/holo-create-swapfile /home/swapfile 1024M
+ExecStart=@libexecdir@/holo/holo-create-swapfile @swapfile@ 1024M
 
 [Install]
 WantedBy=swap.target
