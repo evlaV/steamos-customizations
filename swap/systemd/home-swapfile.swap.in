@@ -13,7 +13,7 @@ Requires=swapfile.service
 After=swapfile.service
 
 [Swap]
-What=/home/swapfile
+What=@swapfile@
 
 [Install]
 WantedBy=swap.target

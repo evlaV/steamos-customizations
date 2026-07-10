@@ -35,6 +35,8 @@ install: all
 	ln -sfv steamos-mount $(DESTDIR)$(sbindir)/mount.steamos
 	install -d $(DESTDIR)$(libexecdir)/steamos
 	install -m 0755 $(LIBRARIES_EXEC) $(DESTDIR)$(libexecdir)/steamos
+	install -d $(DESTDIR)$(libexecdir)/holo
+	mv $(DESTDIR)$(libexecdir)/steamos/holo-* $(DESTDIR)$(libexecdir)/holo
 	install -d $(DESTDIR)$(completionsdir)
 	install -m 0644 $(COMPLETIONS) $(DESTDIR)$(completionsdir)
 	ln -sfv steamos-mount $(DESTDIR)$(completionsdir)/mount.steamos
