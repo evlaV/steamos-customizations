@@ -2,12 +2,13 @@ include ../common.mk
 
 SERVICES_IN := $(wildcard systemd/*.service.in) $(wildcard hibernation/*.service.in)
 SERVICES := $(patsubst %.in,%,$(SERVICES_IN))
-SWAPS := $(wildcard systemd/*.swap)
+SWAPS_IN := $(wildcard systemd/*.swap.in)
+SWAPS := $(patsubst %.in,%,$(SWAPS_IN))
 HIBERNATE_SCRIPTS := $(wildcard hibernation/*.sh)
 UNITS := $(SERVICES) $(SWAPS)
 CLEANABLE := $(SERVICES)
 
-all: $(SERVICES)
+all: $(SERVICES) $(SWAPS)
 
 install: all
 	install -d $(DESTDIR)$(systemdunitsdir)

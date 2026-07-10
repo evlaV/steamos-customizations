@@ -13,6 +13,7 @@ bin/holo-verity
 bin/holo-unminimize
 libexec/holo-cfs-debugfs-settings
 libexec/holo-create-homedir
+libexec/holo-create-swapfile
 libexec/steamos-finish-oobe-migration
 systemd/etc.mount
 systemd/holo-cfs-debugfs-tunings.service
