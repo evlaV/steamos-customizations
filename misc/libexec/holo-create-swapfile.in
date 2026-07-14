@@ -14,19 +14,37 @@
 #  or (at your option) any later version.
 
 # Create the swap file if it doesn't exist.
+
 # Prior to repair image 20260618.10-3.8.10, there was a service ordering
 # problem where the swap file might have been created before the home
 # partition was resized, resulting in a broken swap file
 # ("swapon: /home/swapfile: skipping - it appears to have holes").
 # Check for a faulty swap file and forcefully re-create it.
 
+# Do not re-create a valid swap file if the requested size doesn't match.
+
 if [[ "$#" -ne 2 ]]; then
     echo "Usage: $0 /path/to/swapfile size" >&2
     exit 2
 fi
 
-SWAPFILE="$1"
-SIZE="$2"
+SWAPFILE="$(realpath "$1")"
+SIZE=$(numfmt --from=iec "$2")
+
+# free disk space (in bytes)
+AVAIL=$(( $(df --output=avail "$(dirname "${SWAPFILE}")" | tail -1) * 1024 ))
+
+# Minimum amount of space that must remain free after creating the swap file.
+# There is no point in creating a swap file if there is very little disk space
+# left.
+BUFFER=$(numfmt --from=iec 1G)
+
+check_free_space() {
+    if [[ $(( AVAIL - SIZE )) -lt BUFFER ]]; then
+        echo "Not enough free space to create swap file at ${SWAPFILE}" >&2
+        exit 1
+    fi
+}
 
 create_swap_file() {
     @sbindir@/mkswap --file "${SWAPFILE}" --size "${SIZE}"
@@ -34,18 +52,20 @@ create_swap_file() {
 
 if ! stat -t "${SWAPFILE}" &> /dev/null; then
     # the file doesn't exist, it needs to be created
+    check_free_space
     echo "${SWAPFILE} doesn't exist, creating it" >&2
     create_swap_file
     exit $?
 fi
 
-# replicate the test in swapon (https://github.com/util-linux/util-linux/blob/f9baae0/sys-utils/swapon.c#L564-L572):
+# Replicate the test in swapon (https://github.com/util-linux/util-linux/blob/f9baae0/sys-utils/swapon.c#L564-L572):
 # if the number of blocks multiplied by the block size is less than the total
-# size of the file, then it is sparse ("the file appears to have holes") 
+# size of the file, then it is sparse ("the file appears to have holes").
 if [[ $(( $(stat -c '%b * %B - %s' "${SWAPFILE}") )) -lt 0 ]]; then
     # the file is sparse, it needs to be deleted and re-created
     echo "${SWAPFILE} has holes, re-creating" >&2
     rm -f "${SWAPFILE}"
+    check_free_space
     create_swap_file
     exit $?
 fi
