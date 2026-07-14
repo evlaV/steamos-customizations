@@ -245,7 +245,7 @@ fi
 # Mount overlay
 if [[ ! "${novar:-}" ]] && [[ ! "${nooverlay:-}" ]]
 then
-    mount -t overlay -o "lowerdir=$mnt/etc,upperdir=$mnt/var/lib/overlays/etc/upper,workdir=$mnt/var/lib/overlays/etc/work" none "$mnt/etc"
+    mount -t overlay -o "lowerdir=$mnt/etc,upperdir=$mnt/var/lib/overlays/etc/upper,workdir=$mnt/var/lib/overlays/etc/work,index=off" none "$mnt/etc"
 fi
 
 # Mount boot

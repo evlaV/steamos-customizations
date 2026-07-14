@@ -41,7 +41,7 @@ setup_etc_overlay() {
     @INFO@ "Mounting overlay $upperdir on $lowerdir ($workdir)"
     mount -v \
         -t overlay \
-        -o "lowerdir=$lowerdir,upperdir=$upperdir,workdir=$workdir" \
+        -o "lowerdir=$lowerdir,upperdir=$upperdir,workdir=$workdir,index=off" \
         overlay \
         "$lowerdir" 2>&1 | vinfo
 
