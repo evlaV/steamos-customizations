@@ -43,20 +43,6 @@ elif [[ -f ${RAUC_BUNDLE_MOUNT_POINT}/rootfs.img ]]; then
     target_uuid=$(blkid -o value -s UUID ${RAUC_BUNDLE_MOUNT_POINT}/rootfs.img)
 fi
 
-if [[ ${target_uuid} ]]; then
-    this_image=$(holo-bootconf this-image)
-    root_uuid=$(blkid -o value -s UUID ${SYMLINKS_DIR}/${this_image}/rootfs)
-
-    log "Current image rootfs UUID: $root_uuid"
-    log "Target image rootfs UUID: $target_uuid"
-
-    if [[ ${root_uuid} == ${target_uuid} ]]; then
-        fail "Cannot install an image with the same rootfs UUID as the current active one"
-    fi
-else
-    log "Trying to install an update that doesn't provide its UUID, trying to continue anyway"
-fi
-
 
 [ -d "$RAUC_RUNTIME_DIR" ] || fail "RAUC runtime dir does not exist"
 
