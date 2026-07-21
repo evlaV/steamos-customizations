@@ -259,7 +259,9 @@ fi
 
 # Mark the new partition valid, otherwise it will not boot
 # (note; you can't call rauc status mark-good here)
-(( ERR == 0 )) && holo-bootconf --image $UPDATED_SLOT set-mode reboot
+# `first-boot` will take care of marking the image as valid, clearing the eventual failed boot
+# attempts and setting it as the highest priority
+(( ERR == 0 )) && holo-bootconf --image $UPDATED_SLOT set-mode first-boot
 
 # Store the installed update version in a temporary file to record that we
 # have a pending reboot to switch to the new image
