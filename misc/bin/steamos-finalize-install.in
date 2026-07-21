@@ -70,6 +70,14 @@ function install_bootloaders
         . /etc/os-release ||:
         # mostly just a nice-to-have, but it also resolves a condition where an empty conf doesn't get updated
         steamos-bootconf --conf-dir /esp/@bootconf_reldir@ config --image ${ident} --set comment "${BUILD_ID:-}"
+
+        # In old SteamOS images (up until the early development of 3.9.0) in post-install.sh we were calling
+        # `steamos-bootconf set-mode reboot`, which doesn't reset the `boot-attempts` counter.
+        # This meant that if the other partition had some unrelated failed boot attempts, we could end up
+        # showing the bootloader rescue menu, even after successfully installing a brand new image that never
+        # failed to boot.
+        # Ensure the counter is always reset, regardless of the initial image used to apply an update.
+        steamos-bootconf --conf-dir /esp/@bootconf_reldir@ config --image ${ident} --set boot-attempts 0
     fi
 
     if [[ ! "${no_kernel:-}" ]]
