@@ -47,7 +47,7 @@ Options:
      --list-bootloader-entries
                  List bootloader entries
 EOF
-    "${0##*/holo-}" --help | sed -n '/^Options:/,//{//d;p}'
+    reboot --help | sed -n '/^Options:/,//{//d;p}'
 }
 
 prompt() {
@@ -211,4 +211,4 @@ do
     shift
 done
 
-exec "${0##*/holo-}" "${opts[@]}"
+exec reboot "${opts[@]}"
