@@ -26,6 +26,7 @@ ROOTHASH_RELPATH=@roothash_relpath@
 RAUC_RUNTIME_DIR=@rauc_runtime_dir@
 REBOOT_FOR_UPDATE=@reboot_for_update@
 ATOMUPD_VARDIR=@atomupd_vardir@
+ETC_OVERLAY_ABSDIR=@etc_overlay_absdir@
 
 HOLO_BOOTED_SLOT_SYNC_TRIGGER=@holo_booted_slot_sync_trigger@
 
@@ -229,6 +230,35 @@ rm -f /mnt/"$ATOMUPD_VARDIR"/rootfs.caibx
 mkdir -p /mnt/"$ATOMUPD_VARDIR"
 cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/"$ATOMUPD_VARDIR"/rootfs.caibx || \
     warn "Failed to copy the rootfs seed index file"
+
+# Read this from the already mounted /mnt, rather than later via holo-chroot
+# after /mnt and /mnt/var are unmounted, so it's available while /mnt/var is
+# still mounted. With `set -e`, a failure here would abort the script
+# before the umounts, leaking both mounts. So log an error and continue
+update_manifest=$(cat "/mnt/etc/steamos-atomupd/manifest.json") || {
+    err "Failed to read the destination manifest.json"
+    update_manifest="{}"
+}
+update_buildid=$(jq -r '.buildid | select(type == "string")' <<< "$update_manifest") || update_buildid=""
+update_version=$(jq -r '.version | select(type == "string")' <<< "$update_manifest") || update_version=""
+update_variant=$(jq -r '.variant | select(type == "string")' <<< "$update_manifest") || update_variant=""
+
+# Update the destination preferences.conf by setting the variant from the
+# destination manifest.json. This is needed because older daemons treat a
+# preferences.conf without a Variant as malformed and lose the selected
+# branch. Once 3.9 reaches stable we should stop doing this and instead
+# always remove the Variant field entirely, given that only developers
+# at that point would manually install 3.8 or earlier builds, and in
+# that case the only downside is that the selected branch could end up
+# defaulting to stable.
+if [ -n "$update_variant" ]; then
+    dest_prefs="/mnt/var${ETC_OVERLAY_ABSDIR#"/var"}/upper/steamos-atomupd/preferences.conf"
+    /usr/lib/rauc/holo-set-preferences-variant.py "$dest_prefs" "$update_variant" || \
+        warn "Failed to write the variant to the destination preferences.conf"
+else
+    warn "Failed to set the variant in the destination preferences.conf: manifest has no variant"
+fi
+
 umount /mnt/var
 umount /mnt
 
@@ -268,9 +298,6 @@ fi
 # Additionally, record the current booted slot in a temporary file that
 # triggers the sync during shutdown (holo-post-update-shutdown.service)
 if [ $ERR == 0 ]; then
-  update_manifest=$(holo-chroot --partset $UPDATED_SLOT -- cat "/etc/steamos-atomupd/manifest.json")
-  update_buildid=$(jq -r '.buildid | select(type == "string")' <<< "$update_manifest")
-  update_version=$(jq -r '.version | select(type == "string")' <<< "$update_manifest")
   echo "${update_buildid}-${update_version}" > "$REBOOT_FOR_UPDATE"
   label=$(boot_label "$UPDATED_SLOT" "$update_manifest")
   if [ -n "${label:-}" ]; then

@@ -10,6 +10,8 @@ RAUC_CONFIG :=  $(patsubst %.in,%,$(RAUC_CONFIG_IN))
 RAUC_FALLBACK_CONFIG := $(sed '/install-args=/d;/use-desync=/d' < $(RAUC_CONFIG) > rauc/fallback-system.conf)
 RAUC_HOOKS_IN := $(wildcard rauc/*.sh.in)
 RAUC_HOOKS := $(patsubst %.in,%,$(RAUC_HOOKS_IN))
+RAUC_HELPERS_IN := $(wildcard rauc/*.py.in)
+RAUC_HELPERS := $(patsubst %.in,%,$(RAUC_HELPERS_IN))
 RAUC_TRUSTED_KEYS := $(wildcard rauc/trusted_keys/*)
 STEAMOS_ATOMUPD_CONFIG_IN := steamos-atomupd/client.conf.in
 STEAMOS_ATOMUPD_CONFIG := $(patsubst %.in,%,$(STEAMOS_ATOMUPD_CONFIG_IN))
@@ -17,9 +19,9 @@ SERVICES_OVERRIDE_IN := $(wildcard systemd/*/override.conf.in)
 SERVICES_OVERRIDE := $(patsubst %.in,%,$(SERVICES_OVERRIDE_IN))
 TMPFILES_IN := $(wildcard tmpfiles.d/*.conf.in)
 TMPFILES := $(patsubst %.in,%,$(TMPFILES_IN))
-CLEANABLE := $(CONF_D_EXAMPLE) $(KEEP_CONFIG) $(RAUC_CONFIG) $(RAUC_FALLBACK_CONFIG) $(RAUC_HOOKS) $(SERVICES_OVERRIDE) $(TMPFILES) $(STEAMOS_ATOMUPD_CONFIG)
+CLEANABLE := $(CONF_D_EXAMPLE) $(KEEP_CONFIG) $(RAUC_CONFIG) $(RAUC_FALLBACK_CONFIG) $(RAUC_HOOKS) $(RAUC_HELPERS) $(SERVICES_OVERRIDE) $(TMPFILES) $(STEAMOS_ATOMUPD_CONFIG)
 
-all: $(CONF_D_EXAMPLE) $(KEEP_CONFIG) $(RAUC_CONFIG) $(RAUC_FALLBACK_CONFIG) $(RAUC_HOOKS) $(SERVICES_OVERRIDE) $(TMPFILES) $(STEAMOS_ATOMUPD_CONFIG)
+all: $(CONF_D_EXAMPLE) $(KEEP_CONFIG) $(RAUC_CONFIG) $(RAUC_FALLBACK_CONFIG) $(RAUC_HOOKS) $(RAUC_HELPERS) $(SERVICES_OVERRIDE) $(TMPFILES) $(STEAMOS_ATOMUPD_CONFIG)
 
 install: all
 	install -d $(DESTDIR)$(sysconfdir)/rauc
@@ -27,7 +29,7 @@ install: all
 	install -d $(DESTDIR)$(sysconfdir)/rauc/trusted_keys
 	cp -a $(RAUC_TRUSTED_KEYS) $(DESTDIR)$(sysconfdir)/rauc/trusted_keys/
 	install -d $(DESTDIR)$(libdir)/rauc
-	install -m 0755 $(RAUC_HOOKS) $(DESTDIR)$(libdir)/rauc
+	install -m 0755 $(RAUC_HOOKS) $(RAUC_HELPERS) $(DESTDIR)$(libdir)/rauc
 	install -m 0644 $(KEEP_CONFIG) $(DESTDIR)$(libdir)/rauc
 	install -d $(DESTDIR)$(sysconfdir)/$(ATOMIC_UPDATE_CONF_D_DIR)
 	install -m 0644 $(CONF_D_EXAMPLE) $(DESTDIR)$(sysconfdir)/$(ATOMIC_UPDATE_CONF_D_DIR)

@@ -348,9 +348,11 @@ sync_var_mountpoints() {
     fi
 
     # If we are not going to take new backups, we preserve the existing /etc/previous
-    # in the destination, by explicitly excluding it from the delete operation
+    # in the destination, by explicitly excluding it from the delete operation.
+    # Also skip /etc/steamos-atomupd. post-install.sh already set it correctly,
+    # don't override it.
     if [ $SYNCTYPE == "catchup" ]; then
-        RSYNC_ETC_EXTRA_OPTS="--exclude=/previous"
+        RSYNC_ETC_EXTRA_OPTS="--exclude=/previous --exclude=/steamos-atomupd"
     fi
 
     # Create both upper and work directory, so holo-chroot works correctly.
