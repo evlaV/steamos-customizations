@@ -19,7 +19,8 @@ SUBDIRS :=		\
 	NetworkManager	\
 	offload		\
 	plymouth	\
-	swap
+	swap		\
+	upower
 
 ALL_TARGETS     := $(patsubst %,all-%,$(SUBDIRS))
 INSTALL_TARGETS := $(patsubst %,install-%,$(SUBDIRS))
