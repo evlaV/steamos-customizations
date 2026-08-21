@@ -2,8 +2,15 @@
 
 this_image=$(holo-bootconf this-image)
 
+args=(--mount=@rauc_runtime_dir@)
+args+=(--override-boot-slot="$this_image")
+
 if [ "${STEAMOS_CUSTOM_RAUC_CONF-}" ]; then
-    exec /usr/bin/rauc --mount=@rauc_runtime_dir@ --override-boot-slot="$this_image" --conf="${STEAMOS_CUSTOM_RAUC_CONF}" service
-else
-    exec /usr/bin/rauc --mount=@rauc_runtime_dir@ --override-boot-slot="$this_image" service
+    args+=(--conf="${STEAMOS_CUSTOM_RAUC_CONF}")
 fi
+
+if [ "${HOLO_CUSTOM_STORE_PATH-}" ]; then
+    args+=(--confopt="casync:storepath=${HOLO_CUSTOM_STORE_PATH}")
+fi
+
+exec /usr/bin/rauc "${args[@]}" service
