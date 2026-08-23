@@ -62,8 +62,8 @@ install: all oldlibx-aliases
 	install -m 0755 $(SLEEP_SCRIPTS) $(DESTDIR)$(libdir)/systemd/system-sleep
 	install -d $(DESTDIR)$(sysconfdir)/profile.d
 	install -m 0644 $(PROFILE_CONFIG) $(DESTDIR)$(sysconfdir)/profile.d
-	install -d $(DESTDIR)$(sysconfdir)/limits.d
-	install -m 0644 $(PROTON_LIMITS_CONFIG) $(DESTDIR)$(sysconfdir)/limits.d
+	install -d $(DESTDIR)$(sysconfdir)/security/limits.d
+	install -m 0644 $(PROTON_LIMITS_CONFIG) $(DESTDIR)$(sysconfdir)/security/limits.d
 	install -d $(DESTDIR)$(datadir)/X11/xorg.conf.d
 	install -m 0644 $(XORG_CONFIG) $(DESTDIR)$(datadir)/X11/xorg.conf.d
 	install -d $(DESTDIR)$(systemdunitsdir)
