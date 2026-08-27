@@ -13,7 +13,6 @@ $(info "DESTDIR: $(DESTDIR)")
 SUBDIRS :=		\
 	atomic-update	\
 	chainloader	\
-	debuginfod	\
 	grub		\
 	misc		\
 	NetworkManager	\
