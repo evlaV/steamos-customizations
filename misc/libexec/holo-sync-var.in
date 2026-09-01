@@ -125,7 +125,10 @@ backup_etc_changes() {
         return 1
     fi
 
-    mkdir -p "${backup_dir}"
+    if ! mkdir -p "${backup_dir}"; then
+        warn "Failed to create the /etc backup directory"
+        return 1
+    fi
     backup_name="$(date '+%F_%H-%M-%S').tar.xz"
 
     # When creating the backup we transform the directory structure so that instead of having
@@ -191,7 +194,10 @@ keep_previous_etc_copy() {
 
     # Remove the eventual "/etc/previous" files copied from $src
     rm -rf "${dst}${previous_etc_dir}" || :
-    mkdir -p "${dst}${previous_etc_dir}"
+    if ! mkdir -p "${dst}${previous_etc_dir}"; then
+        warn "Failed to create the /etc/previous directory"
+        return 1
+    fi
 
     src_upper_dir_size=$(du -s --block-size=1K --exclude "${src}${previous_etc_dir}" "${src}${upper_dir}" | cut -f1)
 
@@ -359,8 +365,10 @@ sync_var_mountpoints() {
     #
     # Work directory should be clean, since it handles temporary state, and
     # expected to be wiped on boot - see prepare_etc_overlay for details.
-    mkdir -p "${dst}${upper_dir}"
-    mkdir -p "${dst}${etc_overlay_in_var}/work"
+    if ! mkdir -p "${dst}${upper_dir}" "${dst}${etc_overlay_in_var}/work"; then
+        warn "Failed to create the destination /etc overlay"
+        return 1
+    fi
 
     if ! rsync_etc_overlay \
         "${src}${upper_dir}" "${dst}${upper_dir}" \
