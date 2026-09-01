@@ -176,6 +176,7 @@ backup_etc_changes() {
 
     if ! cp "${BACKUP_TEMP_DIR}/${backup_name}" "${backup_dir}/"; then
         warn "Failed to copy the new /etc backup"
+        rm -f "${backup_dir}/${backup_name}" || :
         return 1
     fi
 
@@ -205,6 +206,7 @@ keep_previous_etc_copy() {
 
     if (( free_space < src_upper_dir_size )); then
         warn "There is not enough free space to keep a copy of the previous /etc edits"
+        rm -rf "${dst}${previous_etc_dir}" || :
         return 1
     fi
 
@@ -223,6 +225,7 @@ keep_previous_etc_copy() {
         "${src}${upper_dir}/" "${dst}${previous_etc_dir}/"; then
 
         warn "rsync failed to sync the /etc changes to the \"previous\" directory"
+        rm -rf "${dst}${previous_etc_dir}" || :
         return 1
     fi
 }
