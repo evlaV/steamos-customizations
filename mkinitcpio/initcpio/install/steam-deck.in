@@ -4,7 +4,6 @@ build() {
     # Number of Deck specific modules, some of which may be autodetected
     # already. For the sake of stability we include them all.
     declare -a DECK_MODULES=(
-        blake2b_generic
         btrfs
         exfat
         ext3
