@@ -336,19 +336,26 @@ sync_var_mountpoints() {
     # --one-file-system makes sure that we ignore all the directories from /home
     # that are bind-mounted onto /var directories.
 
+    local -a sync_args=(
+        --archive
+        --delete
+        --one-file-system
+        --hard-links
+        --acls
+    )
+    local -a exclude_args=(
+        --exclude="/boot/"
+        --exclude="/lib/dkms/"
+        --exclude="/lib/modules/"
+        --exclude="/lib/pacman/"
+        --exclude="/lib/NetworkManager/"
+        --exclude="/lost+found/"
+        --exclude="${etc_overlay_in_var}"
+    )
+
     if ! rsync \
-        --archive \
-        --delete \
-        --one-file-system \
-        --hard-links \
-        --acls \
-        --exclude="/boot/" \
-        --exclude="/lib/dkms/" \
-        --exclude="/lib/modules/" \
-        --exclude="/lib/pacman/" \
-        --exclude="/lib/NetworkManager/" \
-        --exclude="/lost+found/" \
-        --exclude="${etc_overlay_in_var}" \
+        "${sync_args[@]}" \
+        "${exclude_args[@]}" \
         ${RSYNC_VAR_EXTRA_OPTS:-} \
         "$src/" "$dst/"; then
 
