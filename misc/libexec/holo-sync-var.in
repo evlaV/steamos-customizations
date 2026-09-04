@@ -343,6 +343,11 @@ sync_var_mountpoints() {
         --hard-links
         --acls
     )
+    if [ "$SYNCTYPE" == "all" ]; then
+        # The destination was freshly formatted, we use the in place option to avoid
+        # temporary copies potentially filling up the remaining space.
+        sync_args+=(--inplace)
+    fi
     local -a exclude_args=(
         --exclude="/boot/"
         --exclude="/lib/dkms/"
@@ -367,8 +372,10 @@ sync_var_mountpoints() {
     # in the destination, by explicitly excluding it from the delete operation.
     # Also skip /etc/steamos-atomupd. post-install.sh already set it correctly,
     # don't override it.
-    if [ $SYNCTYPE == "catchup" ]; then
+    if [ "$SYNCTYPE" == "catchup" ]; then
         RSYNC_ETC_EXTRA_OPTS="--exclude=/previous --exclude=/steamos-atomupd"
+    elif [ "$SYNCTYPE" == "all" ]; then
+        RSYNC_ETC_EXTRA_OPTS="--inplace"
     fi
 
     # Create both upper and work directory, so holo-chroot works correctly.
