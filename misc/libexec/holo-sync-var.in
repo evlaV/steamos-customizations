@@ -76,6 +76,11 @@ warn() { echo >&2 "Warning:" "$@"; }
 err () { echo >&2 "Error:" "$@"; ERR=1; }
 fail() { echo >&2 "Error:" "$@"; exit 1; }
 
+wipe_destination() (
+    shopt -s dotglob nullglob
+    rm -rf -- "${1:?}"/*
+)
+
 # Check which operations we are doing, otherwise print usage
 SYNCTYPE=all
 
@@ -364,8 +369,43 @@ sync_var_mountpoints() {
         ${RSYNC_VAR_EXTRA_OPTS:-} \
         "$src/" "$dst/"; then
 
-        warn "rsync failed to sync \"$src\" to \"$dst\""
-        return 1
+        if [ "$SYNCTYPE" == "catchup" ]; then
+            warn "rsync failed to catch up \"$src\" to \"$dst\""
+            # Don't wipe the destination because this is only a catchup
+            return 1
+        fi
+
+        warn "Full /var sync failed, retrying with only the very important files"
+        wipe_destination "$dst" || return 1
+
+        # In theory we could trim down this list even further, e.g. removing
+        # the paired BT devices and WiFi DHCP lease IP. But given that we are already
+        # leaving behind other files from /var, this list is not expected to give
+        # space issues. If it still fails, probably we have other unrelated problems.
+        local -a important_include=(
+            --include="/lib/"
+            --include="/lib/bluetooth/***"
+            --include="/lib/dirlock/***"
+            --include="/lib/iwd/***"
+            --include="/lib/sddm/***"
+            --include="/lib/NetworkManager/***"
+            --include="/lib/steamos-atomupd/***"
+            --include="/lib/systemd/"
+            --include="/lib/systemd/rfkill/***"
+            --include="/lib/systemd/timesync/***"
+        )
+
+        if ! rsync \
+            "${sync_args[@]}" \
+            --exclude="${ETC_BACKUP_DIR#"/var"}/" \
+            "${important_include[@]}" \
+            --exclude="*" \
+            ${RSYNC_VAR_EXTRA_OPTS:-} \
+            "$src/" "$dst/"; then
+
+            warn "Failed to even sync only the selected important /var files"
+            return 1
+        fi
     fi
 
     # If we are not going to take new backups, we preserve the existing /etc/previous
