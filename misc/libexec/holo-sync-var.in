@@ -236,6 +236,7 @@ keep_previous_etc_copy() {
 }
 
 build_etc_rsync_config() {
+    local include_user_config=${1:-true}
     local config
     config=$(mktemp --tmpdir "etc_config.XXXXXX")
     if [ -z "${config}" ]; then
@@ -248,12 +249,14 @@ build_etc_rsync_config() {
 
     # Apart from the default config file, we also include all the eventual
     # user defined configuration files
-    for file in "${ATOMIC_UPDATE_CONF_D}"/*.conf; do
-        if [ -f "${file}" ]; then
-            log "Keeping user defined files from '${file}'"
-            printf "\n%s" "$(sed 's#^/etc##' "${file}")" >> "${config}"
-        fi
-    done
+    if [ "$include_user_config" = true ]; then
+        for file in "${ATOMIC_UPDATE_CONF_D}"/*.conf; do
+            if [ -f "${file}" ]; then
+                log "Keeping user defined files from '${file}'"
+                printf "\n%s" "$(sed 's#^/etc##' "${file}")" >> "${config}"
+            fi
+        done
+    fi
     echo "${config}"
 }
 
@@ -263,10 +266,11 @@ rsync_etc_overlay() {
     local extra_opts=${3:-}
     local compare_dest=${4:-}
     local dry_run=${5:-false}
+    local include_user_config=${6:-true}
     local config
     local extra_args=()
 
-    config=$(build_etc_rsync_config) || return 1
+    config=$(build_etc_rsync_config "$include_user_config") || return 1
 
     if [ -n "${compare_dest}" ]; then
         extra_args+=(--compare-dest="${compare_dest}")
@@ -429,10 +433,24 @@ sync_var_mountpoints() {
 
     if ! rsync_etc_overlay \
         "${src}${upper_dir}" "${dst}${upper_dir}" \
-        "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}"; then
+        "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}" false true; then
 
-        warn "rsync failed to sync the /etc changes"
-        return 1
+        if [ "$SYNCTYPE" == "catchup" ]; then
+            warn "rsync failed to catch up the /etc changes"
+            return 1
+        fi
+
+        warn "Failed to sync /etc changes, retrying with only the built-in keep list"
+
+        wipe_destination "${dst}${upper_dir}" || return 1
+
+        if ! rsync_etc_overlay \
+            "${src}${upper_dir}" "${dst}${upper_dir}" \
+            "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}" false false; then
+
+            warn "Failed to even sync only the built-in keep list for /etc"
+            return 1
+        fi
     fi
 
     # Force the removal of user changes from `/etc/os-release`, because that
