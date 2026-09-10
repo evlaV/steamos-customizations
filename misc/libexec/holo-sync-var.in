@@ -39,6 +39,7 @@ set -u
 
 ERR=0 # the error code returned by this script
 BACKUP_TEMP_DIR= # temporary directory used to store the /etc backup
+VAR_BACKUP_DONE=false
 DRY_RUN=false
 
 ETC_OVERLAY_ABSDIR=@etc_overlay_absdir@
@@ -113,6 +114,30 @@ remove_old_files() {
         xargs rm -f
 }
 
+prepare_backup_dir() {
+    local backup_dir=$1
+
+    if [ ! -e "${backup_dir}" ]; then
+        # We don't use -p here because /var is frozen at this point
+        if ! mkdir --mode=0700 "${backup_dir}"; then
+            warn "Failed to create the backup directory ${backup_dir}"
+            return 1
+        fi
+    fi
+
+    if [ -L "${backup_dir}" ] ||
+       [ ! -d "${backup_dir}" ] ||
+       [ "$(stat -c %u "${backup_dir}")" -ne 0 ]; then
+        warn "The backup path ${backup_dir} is not a root-owned directory"
+        return 1
+    fi
+
+    if ! chmod 0700 "${backup_dir}"; then
+        warn "Failed to set the correct permissions on ${backup_dir}"
+        return 1
+    fi
+}
+
 backup_etc_changes() {
     local src=$1
     local dst=$2
@@ -184,6 +209,54 @@ backup_etc_changes() {
         rm -f "${backup_dir}/${backup_name}" || :
         return 1
     fi
+
+    # Keep the latest 5 backups and remove the others. We don't want this to
+    # grow unconditionally.
+    remove_old_files "${backup_dir}" -5 || :
+}
+
+backup_var() {
+    local src="/var"
+    local backup_path
+    # /var/tmp is mounted in a shared partition between A and B.
+    # By saving these backups in `/var/tmp` we also leverage the fact that
+    # they'll be automatically deleted after 30 days by systemd-tmpfiles.
+    local backup_dir="/var/tmp/var_backup"
+
+    # Avoid taking the same backup multiple times
+    if $VAR_BACKUP_DONE; then
+        return 0
+    fi
+
+    log "Taking a full backup of /var in ${backup_dir}"
+
+    prepare_backup_dir "${backup_dir}" || return 1
+
+    backup_path=$(mktemp --tmpdir="${backup_dir}" "$(date '+%F_%H-%M-%S').XXXXXX.tar.xz")
+    if [ -z "${backup_path}" ]; then
+        warn "Failed to create the /var backup archive"
+        return 1
+    fi
+
+    if ! tar \
+        -cf "${backup_path}" \
+        -I 'xz -T0' \
+        --one-file-system \
+        --exclude="${src}/cache" \
+        --exclude="${ETC_OVERLAY_ABSDIR}/upper/previous" \
+        --exclude="${backup_dir}" \
+        "${src}"; then
+
+        # Compared to the etc upper backups, here we don't manually delete the older
+        # backups in order to make space because they could hold important data.
+        # There is no way of knowing which is the correct option, but we are giving
+        # the existing backups an higher importance.
+        warn "Failed to archive the content of /var"
+        rm -f "${backup_path}" || :
+        return 1
+    fi
+
+    VAR_BACKUP_DONE=true
 
     # Keep the latest 5 backups and remove the others. We don't want this to
     # grow unconditionally.
@@ -380,6 +453,8 @@ sync_var_mountpoints() {
         fi
 
         warn "Full /var sync failed, retrying with only the very important files"
+
+        backup_var || warn "Failed to create a /var backup"
         wipe_destination "$dst" || return 1
 
         # In theory we could trim down this list even further, e.g. removing
@@ -442,6 +517,7 @@ sync_var_mountpoints() {
 
         warn "Failed to sync /etc changes, retrying with only the built-in keep list"
 
+        backup_var || warn "Failed to create a /var backup"
         wipe_destination "${dst}${upper_dir}" || return 1
 
         if ! rsync_etc_overlay \
