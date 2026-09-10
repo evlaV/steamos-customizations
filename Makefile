@@ -17,7 +17,6 @@ SUBDIRS :=		\
 	misc		\
 	NetworkManager	\
 	offload		\
-	plymouth	\
 	swap
 
 ALL_TARGETS     := $(patsubst %,all-%,$(SUBDIRS))
