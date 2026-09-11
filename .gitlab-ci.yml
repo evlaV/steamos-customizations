@@ -7,6 +7,5 @@ build:
       export DESTDIR=$(mktemp -d)
       make install
       make install-mkinitcpio
-      make install-desync
       make install-sudo
       make clean
