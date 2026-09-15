@@ -147,6 +147,7 @@ backup_etc_changes() {
     local src=$1
     local dst=$2
     local backup_name
+    local backup_tmp_path
     local backup_size
     local old_backups_size
     local free_space
@@ -161,12 +162,17 @@ backup_etc_changes() {
     fi
 
     prepare_backup_dir "${backup_dir}" true || return 1
-    backup_name="$(date '+%F_%H-%M-%S').tar.xz"
+    backup_tmp_path=$(mktemp --tmpdir="${BACKUP_TEMP_DIR}" "$(date '+%F_%H-%M-%S').XXXXXX.tar.xz")
+    if [ -z "${backup_tmp_path}" ]; then
+        warn "Failed to create the /etc backup archive"
+        return 1
+    fi
+    backup_name=${backup_tmp_path##*/}
 
     # When creating the backup we transform the directory structure so that instead of having
     # the files under something like `var/lib/overlays/etc/upper/...` we end up with `etc/...`
     if ! tar \
-        -cf "${BACKUP_TEMP_DIR}/${backup_name}" \
+        -cf "${backup_tmp_path}" \
         -I 'xz -T0' \
         --transform "s,^${src#/}${upper_dir},etc," \
         "${src}${upper_dir}"; then
@@ -207,7 +213,7 @@ backup_etc_changes() {
     done
 
     if ! install --mode=0600 \
-        "${BACKUP_TEMP_DIR}/${backup_name}" \
+        "${backup_tmp_path}" \
         "${backup_dir}/${backup_name}"; then
         warn "Failed to copy the new /etc backup"
         rm -f "${backup_dir}/${backup_name}" || :
