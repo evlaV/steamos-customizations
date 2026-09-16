@@ -39,6 +39,7 @@ set -u
 
 ERR=0 # the error code returned by this script
 BACKUP_TEMP_DIR= # temporary directory used to store the /etc backup
+VAR_BACKUP_DONE=false
 DRY_RUN=false
 
 ETC_OVERLAY_ABSDIR=@etc_overlay_absdir@
@@ -76,6 +77,11 @@ warn() { echo >&2 "Warning:" "$@"; }
 err () { echo >&2 "Error:" "$@"; ERR=1; }
 fail() { echo >&2 "Error:" "$@"; exit 1; }
 
+wipe_destination() (
+    shopt -s dotglob nullglob
+    rm -rf -- "${1:?}"/*
+)
+
 # Check which operations we are doing, otherwise print usage
 SYNCTYPE=all
 
@@ -108,10 +114,40 @@ remove_old_files() {
         xargs rm -f
 }
 
+prepare_backup_dir() {
+    local backup_dir=$1
+    local create_parents=${2:-false}
+    local mkdir_args=(--mode=0700)
+
+    if $create_parents; then
+        mkdir_args+=(--parents)
+    fi
+
+    if [ ! -e "${backup_dir}" ]; then
+        if ! mkdir "${mkdir_args[@]}" "${backup_dir}"; then
+            warn "Failed to create the backup directory ${backup_dir}"
+            return 1
+        fi
+    fi
+
+    if [ -L "${backup_dir}" ] ||
+       [ ! -d "${backup_dir}" ] ||
+       [ "$(stat -c %u "${backup_dir}")" -ne 0 ]; then
+        warn "The backup path ${backup_dir} is not a root-owned directory"
+        return 1
+    fi
+
+    if ! chmod 0700 "${backup_dir}"; then
+        warn "Failed to set the correct permissions on ${backup_dir}"
+        return 1
+    fi
+}
+
 backup_etc_changes() {
     local src=$1
     local dst=$2
     local backup_name
+    local backup_tmp_path
     local backup_size
     local old_backups_size
     local free_space
@@ -125,13 +161,18 @@ backup_etc_changes() {
         return 1
     fi
 
-    mkdir -p "${backup_dir}"
-    backup_name="$(date '+%F_%H-%M-%S').tar.xz"
+    prepare_backup_dir "${backup_dir}" true || return 1
+    backup_tmp_path=$(mktemp --tmpdir="${BACKUP_TEMP_DIR}" "$(date '+%F_%H-%M-%S').XXXXXX.tar.xz")
+    if [ -z "${backup_tmp_path}" ]; then
+        warn "Failed to create the /etc backup archive"
+        return 1
+    fi
+    backup_name=${backup_tmp_path##*/}
 
     # When creating the backup we transform the directory structure so that instead of having
     # the files under something like `var/lib/overlays/etc/upper/...` we end up with `etc/...`
     if ! tar \
-        -cf "${BACKUP_TEMP_DIR}/${backup_name}" \
+        -cf "${backup_tmp_path}" \
         -I 'xz -T0' \
         --transform "s,^${src#/}${upper_dir},etc," \
         "${src}${upper_dir}"; then
@@ -171,10 +212,62 @@ backup_etc_changes() {
         fi
     done
 
-    if ! cp "${BACKUP_TEMP_DIR}/${backup_name}" "${backup_dir}/"; then
+    if ! install --mode=0600 \
+        "${backup_tmp_path}" \
+        "${backup_dir}/${backup_name}"; then
         warn "Failed to copy the new /etc backup"
+        rm -f "${backup_dir}/${backup_name}" || :
         return 1
     fi
+
+    # Keep the latest 5 backups and remove the others. We don't want this to
+    # grow unconditionally.
+    remove_old_files "${backup_dir}" -5 || :
+}
+
+backup_var() {
+    local src="/var"
+    local backup_path
+    # /var/tmp is mounted in a shared partition between A and B.
+    # By saving these backups in `/var/tmp` we also leverage the fact that
+    # they'll be automatically deleted after 30 days by systemd-tmpfiles.
+    local backup_dir="/var/tmp/var_backup"
+
+    # Avoid taking the same backup multiple times
+    if $VAR_BACKUP_DONE; then
+        return 0
+    fi
+
+    log "Taking a full backup of /var in ${backup_dir}"
+
+    # We don't create the parent directories here, because /var is frozen at this point
+    prepare_backup_dir "${backup_dir}" || return 1
+
+    backup_path=$(mktemp --tmpdir="${backup_dir}" "$(date '+%F_%H-%M-%S').XXXXXX.tar.xz")
+    if [ -z "${backup_path}" ]; then
+        warn "Failed to create the /var backup archive"
+        return 1
+    fi
+
+    if ! tar \
+        -cf "${backup_path}" \
+        -I 'xz -T0' \
+        --one-file-system \
+        --exclude="${src}/cache" \
+        --exclude="${ETC_OVERLAY_ABSDIR}/upper/previous" \
+        --exclude="${backup_dir}" \
+        "${src}"; then
+
+        # Compared to the etc upper backups, here we don't manually delete the older
+        # backups in order to make space because they could hold important data.
+        # There is no way of knowing which is the correct option, but we are giving
+        # the existing backups an higher importance.
+        warn "Failed to archive the content of /var"
+        rm -f "${backup_path}" || :
+        return 1
+    fi
+
+    VAR_BACKUP_DONE=true
 
     # Keep the latest 5 backups and remove the others. We don't want this to
     # grow unconditionally.
@@ -191,7 +284,10 @@ keep_previous_etc_copy() {
 
     # Remove the eventual "/etc/previous" files copied from $src
     rm -rf "${dst}${previous_etc_dir}" || :
-    mkdir -p "${dst}${previous_etc_dir}"
+    if ! mkdir -p "${dst}${previous_etc_dir}"; then
+        warn "Failed to create the /etc/previous directory"
+        return 1
+    fi
 
     src_upper_dir_size=$(du -s --block-size=1K --exclude "${src}${previous_etc_dir}" "${src}${upper_dir}" | cut -f1)
 
@@ -199,6 +295,7 @@ keep_previous_etc_copy() {
 
     if (( free_space < src_upper_dir_size )); then
         warn "There is not enough free space to keep a copy of the previous /etc edits"
+        rm -rf "${dst}${previous_etc_dir}" || :
         return 1
     fi
 
@@ -217,11 +314,13 @@ keep_previous_etc_copy() {
         "${src}${upper_dir}/" "${dst}${previous_etc_dir}/"; then
 
         warn "rsync failed to sync the /etc changes to the \"previous\" directory"
+        rm -rf "${dst}${previous_etc_dir}" || :
         return 1
     fi
 }
 
 build_etc_rsync_config() {
+    local include_user_config=${1:-true}
     local config
     config=$(mktemp --tmpdir "etc_config.XXXXXX")
     if [ -z "${config}" ]; then
@@ -234,12 +333,14 @@ build_etc_rsync_config() {
 
     # Apart from the default config file, we also include all the eventual
     # user defined configuration files
-    for file in "${ATOMIC_UPDATE_CONF_D}"/*.conf; do
-        if [ -f "${file}" ]; then
-            log "Keeping user defined files from '${file}'"
-            printf "\n%s" "$(sed 's#^/etc##' "${file}")" >> "${config}"
-        fi
-    done
+    if [ "$include_user_config" = true ]; then
+        for file in "${ATOMIC_UPDATE_CONF_D}"/*.conf; do
+            if [ -f "${file}" ]; then
+                log "Keeping user defined files from '${file}'"
+                printf "\n%s" "$(sed 's#^/etc##' "${file}")" >> "${config}"
+            fi
+        done
+    fi
     echo "${config}"
 }
 
@@ -249,10 +350,11 @@ rsync_etc_overlay() {
     local extra_opts=${3:-}
     local compare_dest=${4:-}
     local dry_run=${5:-false}
+    local include_user_config=${6:-true}
     local config
     local extra_args=()
 
-    config=$(build_etc_rsync_config) || return 1
+    config=$(build_etc_rsync_config "$include_user_config") || return 1
 
     if [ -n "${compare_dest}" ]; then
         extra_args+=(--compare-dest="${compare_dest}")
@@ -327,47 +429,115 @@ sync_var_mountpoints() {
     # --one-file-system makes sure that we ignore all the directories from /home
     # that are bind-mounted onto /var directories.
 
+    local -a sync_args=(
+        --archive
+        --delete
+        --one-file-system
+        --hard-links
+        --acls
+    )
+    if [ "$SYNCTYPE" == "all" ]; then
+        # The destination was freshly formatted, we use the in place option to avoid
+        # temporary copies potentially filling up the remaining space.
+        sync_args+=(--inplace)
+    fi
+    local -a exclude_args=(
+        --exclude="/boot/"
+        --exclude="/lib/dkms/"
+        --exclude="/lib/modules/"
+        --exclude="/lib/pacman/"
+        --exclude="/lib/NetworkManager/"
+        --exclude="/lost+found/"
+        --exclude="${etc_overlay_in_var}"
+    )
+
     if ! rsync \
-        --archive \
-        --delete \
-        --one-file-system \
-        --hard-links \
-        --acls \
-        --exclude="/boot/" \
-        --exclude="/lib/dkms/" \
-        --exclude="/lib/modules/" \
-        --exclude="/lib/pacman/" \
-        --exclude="/lib/NetworkManager/" \
-        --exclude="/lost+found/" \
-        --exclude="${etc_overlay_in_var}" \
+        "${sync_args[@]}" \
+        "${exclude_args[@]}" \
         ${RSYNC_VAR_EXTRA_OPTS:-} \
         "$src/" "$dst/"; then
 
-        warn "rsync failed to sync \"$src\" to \"$dst\""
-        return 1
+        if [ "$SYNCTYPE" == "catchup" ]; then
+            warn "rsync failed to catch up \"$src\" to \"$dst\""
+            # Don't wipe the destination because this is only a catchup
+            return 1
+        fi
+
+        warn "Full /var sync failed, retrying with only the very important files"
+
+        backup_var || warn "Failed to create a /var backup"
+        wipe_destination "$dst" || return 1
+
+        # In theory we could trim down this list even further, e.g. removing
+        # the paired BT devices and WiFi DHCP lease IP. But given that we are already
+        # leaving behind other files from /var, this list is not expected to give
+        # space issues. If it still fails, probably we have other unrelated problems.
+        local -a important_include=(
+            --include="/lib/"
+            --include="/lib/bluetooth/***"
+            --include="/lib/dirlock/***"
+            --include="/lib/iwd/***"
+            --include="/lib/sddm/***"
+            --include="/lib/NetworkManager/***"
+            --include="/lib/steamos-atomupd/***"
+            --include="/lib/systemd/"
+            --include="/lib/systemd/rfkill/***"
+            --include="/lib/systemd/timesync/***"
+        )
+
+        if ! rsync \
+            "${sync_args[@]}" \
+            --exclude="${ETC_BACKUP_DIR#"/var"}/" \
+            "${important_include[@]}" \
+            --exclude="*" \
+            ${RSYNC_VAR_EXTRA_OPTS:-} \
+            "$src/" "$dst/"; then
+
+            warn "Failed to even sync only the selected important /var files"
+            return 1
+        fi
     fi
 
     # If we are not going to take new backups, we preserve the existing /etc/previous
     # in the destination, by explicitly excluding it from the delete operation.
     # Also skip /etc/steamos-atomupd. post-install.sh already set it correctly,
     # don't override it.
-    if [ $SYNCTYPE == "catchup" ]; then
+    if [ "$SYNCTYPE" == "catchup" ]; then
         RSYNC_ETC_EXTRA_OPTS="--exclude=/previous --exclude=/steamos-atomupd"
+    elif [ "$SYNCTYPE" == "all" ]; then
+        RSYNC_ETC_EXTRA_OPTS="--inplace"
     fi
 
     # Create both upper and work directory, so holo-chroot works correctly.
     #
     # Work directory should be clean, since it handles temporary state, and
     # expected to be wiped on boot - see prepare_etc_overlay for details.
-    mkdir -p "${dst}${upper_dir}"
-    mkdir -p "${dst}${etc_overlay_in_var}/work"
+    if ! mkdir -p "${dst}${upper_dir}" "${dst}${etc_overlay_in_var}/work"; then
+        warn "Failed to create the destination /etc overlay"
+        return 1
+    fi
 
     if ! rsync_etc_overlay \
         "${src}${upper_dir}" "${dst}${upper_dir}" \
-        "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}"; then
+        "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}" false true; then
 
-        warn "rsync failed to sync the /etc changes"
-        return 1
+        if [ "$SYNCTYPE" == "catchup" ]; then
+            warn "rsync failed to catch up the /etc changes"
+            return 1
+        fi
+
+        warn "Failed to sync /etc changes, retrying with only the built-in keep list"
+
+        backup_var || warn "Failed to create a /var backup"
+        wipe_destination "${dst}${upper_dir}" || return 1
+
+        if ! rsync_etc_overlay \
+            "${src}${upper_dir}" "${dst}${upper_dir}" \
+            "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}" false false; then
+
+            warn "Failed to even sync only the built-in keep list for /etc"
+            return 1
+        fi
     fi
 
     # Force the removal of user changes from `/etc/os-release`, because that

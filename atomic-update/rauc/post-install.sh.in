@@ -224,12 +224,27 @@ mount "$VAR_DEVICE_OTHER" /mnt/var
 /usr/lib/holo/holo-sync-var all || \
     err "Failed to sync var partitions"
 
-# Remove the old rootfs index to ensure that we either have the correct one
-# or that we don't have it at all.
-rm -f /mnt/"$ATOMUPD_VARDIR"/rootfs.caibx
-mkdir -p /mnt/"$ATOMUPD_VARDIR"
-cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx /mnt/"$ATOMUPD_VARDIR"/rootfs.caibx || \
-    warn "Failed to copy the rootfs seed index file"
+# To make sure we have enough space for the new rootfs.caibx file,
+# we copy it first to a temporary file and only move it into place.
+# This way we either have a valid complete file in place, or the old one,
+# which is invalid and will be regenerated in memory.
+# We want to avoid not having a rootfs.caibx at all, because in that case
+# atomupd-daemon will create it on the filesystem, and if there isn't enough
+# space it will throw an error.
+seed_tmp=/mnt/"$ATOMUPD_VARDIR"/rootfs.caibx.tmp
+
+mkdir -p /mnt/"$ATOMUPD_VARDIR" || warn "Failed to create the rootfs seed index directory"
+rm -f "$seed_tmp" || :
+
+if cp "$RAUC_BUNDLE_MOUNT_POINT"/rootfs.img.caibx "$seed_tmp"; then
+    if ! mv -f "$seed_tmp" /mnt/"$ATOMUPD_VARDIR"/rootfs.caibx; then
+        warn "Failed to move the rootfs caibx, keeping the previous index"
+        rm -f "$seed_tmp" || :
+    fi
+else
+    warn "Failed to copy the rootfs caibx, keeping the previous index"
+    rm -f "$seed_tmp" || :
+fi
 
 # Read this from the already mounted /mnt, rather than later via holo-chroot
 # after /mnt and /mnt/var are unmounted, so it's available while /mnt/var is
