@@ -18,7 +18,7 @@ set -euo pipefail
 function usage
 {
     cat <<EOF
-Usage: ${0##*/} [--roothash=HASH] [--no-bootloaders] [--no-kernel] [--no-migrate]
+Usage: ${0##*/} [--roothash=HASH] [--no-bootloaders] [--no-migrate] [--host-mode]
 
 Perform post-update migration steps before marking the new installation ready.
 Install boot artifacts on your device.
@@ -28,6 +28,8 @@ EOF
 # Install boot artifacts
 function install_bootloaders
 {
+    local args=()
+
     if [[ ! "${no_bootloaders:-}" ]]
     then
         typeset ident
@@ -45,7 +47,12 @@ function install_bootloaders
             exit 1
         fi
 
-        steamcl-install
+        if [[ ${hostmode:-} ]]
+        then
+            args+=(--no-efi)
+        fi
+
+        steamcl-install ${args[@]}
         if mountpoint -q /boot
         then
             grub-install
@@ -80,11 +87,6 @@ function install_bootloaders
         holo-bootconf --conf-dir /esp/@bootconf_reldir@ config --image ${ident} --set boot-attempts 0
     fi
 
-    if [[ ! "${no_kernel:-}" ]]
-    then
-        echo "Runnign ${0##*/} without --no-kernel is not supported"
-        exit 1
-    fi
     if [[ "${roothash:-}" ]]
     then
         mkdir -p /efi/SteamOS
@@ -208,6 +210,10 @@ do
     then
         usage
         exit
+    elif [[ "$1" =~ ^(--host-mode)$ ]]
+    then
+        shift
+        hostmode=1
     elif [[ "$1" =~ ^(--roothash)$ ]]
     then
         shift
@@ -217,7 +223,8 @@ do
         no_bootloaders=1
     elif [[ "$1" =~ ^(--no-kernel)$ ]]
     then
-        no_kernel=1
+        # Deprecated, but need to still accept for backwards compatibility
+        true
     elif [[ "$1" =~ ^(--no-boot-install)$ ]]
     then
         no_boot_install=1
