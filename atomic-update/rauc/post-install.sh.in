@@ -290,6 +290,8 @@ declare -i  FINISHED=0
 
 for finish in ${FINISH[@]}
 do
+    # NOTE: "--no-kernel" is now a no-op, but we can't remove it here as we
+    #       want to maintain the ability to install old images.
     if holo-chroot --partset $UPDATED_SLOT -- $finish --no-kernel
     then
         FINISHED=1

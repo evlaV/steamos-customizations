@@ -25,6 +25,6 @@ _holo-boot-install()
             ;;
     esac
 
-    COMPREPLY=($(compgen -W "--roothash --no-bootloaders" "--no-kernel" -- "$cur"))
+    COMPREPLY=($(compgen -W "--roothash --no-bootloaders" -- "$cur"))
 } &&
 complete -F _holo-boot-install holo-boot-install
