@@ -15,7 +15,6 @@ SUBDIRS :=		\
 	chainloader	\
 	grub		\
 	misc		\
-	NetworkManager	\
 	offload		\
 	swap
 
