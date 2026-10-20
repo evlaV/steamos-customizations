@@ -41,6 +41,8 @@ ERR=0 # the error code returned by this script
 BACKUP_TEMP_DIR= # temporary directory used to store the /etc backup
 VAR_BACKUP_DONE=false
 DRY_RUN=false
+ETC_RSYNC_CONFIG= # rsync filter with both the built-in and the user defined /etc keep lists
+ETC_RSYNC_CONFIG_BUILTIN= # rsync filter with only the built-in /etc keep list
 
 ETC_OVERLAY_ABSDIR=@etc_overlay_absdir@
 ETC_BACKUP_DIR=@etc_backup_dir@
@@ -61,6 +63,14 @@ cleanup () {
 
     if [ -n "$BACKUP_TEMP_DIR" ]; then
         rm -rf "$BACKUP_TEMP_DIR" || :
+    fi
+
+    if [ -n "$ETC_RSYNC_CONFIG" ]; then
+        rm -f "$ETC_RSYNC_CONFIG" || :
+    fi
+
+    if [ -n "$ETC_RSYNC_CONFIG_BUILTIN" ]; then
+        rm -f "$ETC_RSYNC_CONFIG_BUILTIN" || :
     fi
 
     exit $ERR
@@ -347,14 +357,11 @@ build_etc_rsync_config() {
 rsync_etc_overlay() {
     local src=$1
     local dst=$2
-    local extra_opts=${3:-}
-    local compare_dest=${4:-}
-    local dry_run=${5:-false}
-    local include_user_config=${6:-true}
-    local config
+    local config=$3
+    local extra_opts=${4:-}
+    local compare_dest=${5:-}
+    local dry_run=${6:-false}
     local extra_args=()
-
-    config=$(build_etc_rsync_config "$include_user_config") || return 1
 
     if [ -n "${compare_dest}" ]; then
         extra_args+=(--compare-dest="${compare_dest}")
@@ -390,11 +397,8 @@ rsync_etc_overlay() {
         --exclude="*" \
         "${src}/" "${dst}/"; then
 
-        rm -f "${config}"
         return 1
     fi
-
-    rm -f "${config}"
 }
 
 sync_var_mountpoints() {
@@ -518,8 +522,8 @@ sync_var_mountpoints() {
     fi
 
     if ! rsync_etc_overlay \
-        "${src}${upper_dir}" "${dst}${upper_dir}" \
-        "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}" false true; then
+        "${src}${upper_dir}" "${dst}${upper_dir}" "${ETC_RSYNC_CONFIG}" \
+        "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}"; then
 
         if [ "$SYNCTYPE" == "catchup" ]; then
             warn "rsync failed to catch up the /etc changes"
@@ -532,8 +536,8 @@ sync_var_mountpoints() {
         wipe_destination "${dst}${upper_dir}" || return 1
 
         if ! rsync_etc_overlay \
-            "${src}${upper_dir}" "${dst}${upper_dir}" \
-            "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}" false false; then
+            "${src}${upper_dir}" "${dst}${upper_dir}" "${ETC_RSYNC_CONFIG_BUILTIN}" \
+            "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}"; then
 
             warn "Failed to even sync only the built-in keep list for /etc"
             return 1
@@ -599,10 +603,15 @@ report_unpreserved_etc_files() {
         return 0
     fi
 
+    if ! ETC_RSYNC_CONFIG=$(build_etc_rsync_config true); then
+        err "Failed to build the rsync config for the /etc changes"
+        return 1
+    fi
+
     dryrun_dest=$(mktemp -d --tmpdir "holo-sync-var-dryrun.XXXXXX")
 
     if ! rsync_output=$(rsync_etc_overlay \
-        "${src}${upper_dir}" "${dryrun_dest}" \
+        "${src}${upper_dir}" "${dryrun_dest}" "${ETC_RSYNC_CONFIG}" \
         "${RSYNC_ETC_EXTRA_OPTS:-}" "" true); then
 
         err "rsync failed while analysing /etc changes for dry-run"
@@ -675,6 +684,14 @@ else
     log "Update slot candidate is $UPDATED_SLOT"
 
     VAR_FROM=/var
+
+    # Build the rsync configs before freezing /var. Reading /etc while /var is
+    # frozen can deadlock, because an overlayfs lookup may need to write to the
+    # upper layer, e.g. to restore a missing "trusted.overlay.origin" xattr.
+    ETC_RSYNC_CONFIG=$(build_etc_rsync_config true) || \
+        fail "Failed to build the rsync config for the /etc changes"
+    ETC_RSYNC_CONFIG_BUILTIN=$(build_etc_rsync_config false) || \
+        fail "Failed to build the rsync config for the built-in /etc keep list"
 
     fsfreeze -f "$VAR_FROM"
     sync_var_mountpoints "$VAR_FROM" /mnt/var /mnt/etc || \
