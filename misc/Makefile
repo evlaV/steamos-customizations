@@ -6,7 +6,6 @@ LIBRARIES_EXEC_IN := $(wildcard libexec/*.in)
 LIBRARIES_EXEC := $(patsubst %.in,%,$(LIBRARIES_EXEC_IN))
 COMPLETIONS := $(wildcard completions/*)
 REPART_CONFIG := $(wildcard repart.d/*.conf)
-SYSCTL_CONFIG := $(wildcard sysctl.d/*.conf)
 LODIND_CONFIG := $(wildcard journald.conf.d/*.conf)
 SLEEP_CONFIG := $(wildcard sleep.conf.d/*.conf)
 SLEEP_SCRIPTS := $(wildcard system-sleep/*)
@@ -14,7 +13,6 @@ PROFILE_CONFIG := profile.d/holo.sh
 XORG_CONFIG := xorg.conf.d/10-holo-virtualdisplaysize.conf
 PROTON_LIMITS_CONFIG := limits.d/15-proton-nice.conf
 SYSTEMD_LOGIND_CONFIG := systemd-logind.service.d/homedir-override.conf
-MODULES_LOAD_CONFIG := $(wildcard modules-load.d/*.conf)
 UDEV_RULES := $(wildcard rules.d/*.rules)
 UDEV_HWDB := $(wildcard hwdb.d/*.hwdb)
 
@@ -52,8 +50,6 @@ install: all oldlibx-aliases
 	ln -sfv holo-mount $(DESTDIR)$(completionsdir)/mount.holo
 	install -d $(DESTDIR)$(libdir)/repart.d
 	install -m 0644 $(REPART_CONFIG) $(DESTDIR)$(libdir)/repart.d
-	install -d $(DESTDIR)$(libdir)/sysctl.d/
-	install -m 0644 $(SYSCTL_CONFIG) $(DESTDIR)$(libdir)/sysctl.d/
 	install -d $(DESTDIR)$(libdir)/systemd/journald.conf.d/
 	install -m 0644 $(LODIND_CONFIG) $(DESTDIR)$(libdir)/systemd/journald.conf.d/
 	install -d $(DESTDIR)$(libdir)/systemd/sleep.conf.d/
@@ -73,8 +69,6 @@ install: all oldlibx-aliases
 	install -m 0644 $(SYSUSERS) $(DESTDIR)$(libdir)/sysusers.d
 	install -d $(DESTDIR)$(sysconfdir)/systemd/system/systemd-logind.service.d
 	install -m 0644 $(SYSTEMD_LOGIND_CONFIG) $(DESTDIR)$(sysconfdir)/systemd/system/systemd-logind.service.d
-	install -d $(DESTDIR)$(libdir)/modules-load.d/
-	install -m 0644 $(MODULES_LOAD_CONFIG) $(DESTDIR)$(libdir)/modules-load.d/
 	install -d $(DESTDIR)$(libdir)/udev/rules.d/
 	install -m 0644 $(UDEV_RULES) $(DESTDIR)$(libdir)/udev/rules.d/
 	install -d $(DESTDIR)$(libdir)/udev/hwdb.d/
