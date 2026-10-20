@@ -40,6 +40,7 @@ set -u
 ERR=0 # the error code returned by this script
 BACKUP_TEMP_DIR= # temporary directory used to store the /etc backup
 DRY_RUN=false
+ETC_RSYNC_CONFIG= # rsync filter with both the built-in and the user defined /etc keep lists
 
 ETC_OVERLAY_ABSDIR=@etc_overlay_absdir@
 ETC_BACKUP_DIR=@etc_backup_dir@
@@ -60,6 +61,10 @@ cleanup () {
 
     if [ -n "$BACKUP_TEMP_DIR" ]; then
         rm -rf "$BACKUP_TEMP_DIR" || :
+    fi
+
+    if [ -n "$ETC_RSYNC_CONFIG" ]; then
+        rm -f "$ETC_RSYNC_CONFIG" || :
     fi
 
     exit $ERR
@@ -246,13 +251,11 @@ build_etc_rsync_config() {
 rsync_etc_overlay() {
     local src=$1
     local dst=$2
-    local extra_opts=${3:-}
-    local compare_dest=${4:-}
-    local dry_run=${5:-false}
-    local config
+    local config=$3
+    local extra_opts=${4:-}
+    local compare_dest=${5:-}
+    local dry_run=${6:-false}
     local extra_args=()
-
-    config=$(build_etc_rsync_config) || return 1
 
     if [ -n "${compare_dest}" ]; then
         extra_args+=(--compare-dest="${compare_dest}")
@@ -288,11 +291,8 @@ rsync_etc_overlay() {
         --exclude="*" \
         "${src}/" "${dst}/"; then
 
-        rm -f "${config}"
         return 1
     fi
-
-    rm -f "${config}"
 }
 
 sync_var_mountpoints() {
@@ -363,7 +363,7 @@ sync_var_mountpoints() {
     mkdir -p "${dst}${etc_overlay_in_var}/work"
 
     if ! rsync_etc_overlay \
-        "${src}${upper_dir}" "${dst}${upper_dir}" \
+        "${src}${upper_dir}" "${dst}${upper_dir}" "${ETC_RSYNC_CONFIG}" \
         "${RSYNC_ETC_EXTRA_OPTS:-}" "${lower_dir}"; then
 
         warn "rsync failed to sync the /etc changes"
@@ -429,10 +429,15 @@ report_unpreserved_etc_files() {
         return 0
     fi
 
+    if ! ETC_RSYNC_CONFIG=$(build_etc_rsync_config); then
+        err "Failed to build the rsync config for the /etc changes"
+        return 1
+    fi
+
     dryrun_dest=$(mktemp -d --tmpdir "holo-sync-var-dryrun.XXXXXX")
 
     if ! rsync_output=$(rsync_etc_overlay \
-        "${src}${upper_dir}" "${dryrun_dest}" \
+        "${src}${upper_dir}" "${dryrun_dest}" "${ETC_RSYNC_CONFIG}" \
         "${RSYNC_ETC_EXTRA_OPTS:-}" "" true); then
 
         err "rsync failed while analysing /etc changes for dry-run"
@@ -505,6 +510,12 @@ else
     log "Update slot candidate is $UPDATED_SLOT"
 
     VAR_FROM=/var
+
+    # Build the rsync configs before freezing /var. Reading /etc while /var is
+    # frozen can deadlock, because an overlayfs lookup may need to write to the
+    # upper layer, e.g. to restore a missing "trusted.overlay.origin" xattr.
+    ETC_RSYNC_CONFIG=$(build_etc_rsync_config) || \
+        fail "Failed to build the rsync config for the /etc changes"
 
     fsfreeze -f "$VAR_FROM"
     sync_var_mountpoints "$VAR_FROM" /mnt/var /mnt/etc || \
