@@ -15,6 +15,7 @@ SUBDIRS :=		\
 	chainloader	\
 	grub		\
 	misc		\
+	offload		\
 	swap
 
 ALL_TARGETS     := $(patsubst %,all-%,$(SUBDIRS))
