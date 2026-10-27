@@ -1,0 +1,136 @@
+#!/usr/bin/python3
+
+# -*- mode: python; indent-tabs-mode: nil; sh-basic-offset: 4; -*-
+# vim: et sts=4 sw=4
+
+#  SPDX-License-Identifier: LGPL-2.1+
+#
+#  Copyright © 2020-2021 Collabora Ltd.
+#  Copyright © 2020-2021 Valve Corporation.
+#
+#  This file is part of steamos-customizations.
+#
+#  steamos-customizations is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public License as
+#  published by the Free Software Foundation; either version 2.1 of the License,
+#  or (at your option) any later version.
+
+import argparse
+import subprocess
+import re
+import glob
+
+def read_manifest(lines):
+    for line in lines:
+        match = re.search(r"^([^#][^\s]*) ([^\s]+)", line)
+        if match:
+            yield match.groups()
+
+def manifest_packages():
+    with open("/usr/lib/manifest.pacman", "r") as manifest:
+        return package_map(read_manifest(manifest))
+
+def installed_packages():
+    return package_map(
+        read_manifest(
+            subprocess.run(
+                ["pacman", "-Q"],
+                stdout=subprocess.PIPE,
+                encoding="utf-8",
+                check=True
+            ).stdout.splitlines()
+        )
+    )
+
+def package_map(pkgs):
+    return {name: version for (name, version) in pkgs}
+
+def compare_installed_packages_with_manifest():
+    manifest = manifest_packages()
+    installed = installed_packages()
+
+    missing = [name for name in manifest.keys()
+        if not name in installed]
+    new = [name for name in installed.keys()
+        if not name in manifest]
+    diff_versions = [name for name, version in manifest.items()
+        if name in installed and version != installed[name]]
+    
+    if len(missing) > 0:
+        print("\nMissing packages present in manifest:")
+        for name in missing:
+            print("   ", name)
+
+    if len(new) > 0:
+        print("\nNewly installed packages not present in manifest:")
+        for name in new:
+            print("   ", name)
+
+    if len(diff_versions) > 0:
+        print("\nPackage versions differing from manifest:")
+        for name in diff_versions:
+            print("   ", name, manifest[name], "->", installed[name])
+
+def parse_attrs(attrstr):
+    attr = {}
+    for str in attrstr.split(","):
+        match = re.search(r"^([^=]+)=?(.*)", str)
+        if match:
+            yield match.groups()
+
+def parse_mount(lines):
+    for line in lines:
+        match = re.search(
+            r"^([^\s]+) on ([^\s]+) type ([^\s]+) \(([^\s]+)\)",
+            line
+        )
+        if match:
+            dev, prefix, typ, attrstr = match.groups()
+            attrs = {key: val for (key, val) in parse_attrs(attrstr)}
+            yield (dev, prefix, typ, attrs)
+
+def get_overlays():
+    mount = subprocess.run(
+        ["mount",],
+        stdout=subprocess.PIPE,
+        encoding="utf-8",
+        check=True
+    )
+    for mountpoint in parse_mount(mount.stdout.splitlines()):
+        (_, _, typ, _) = mountpoint
+        if typ == "overlay":
+            yield mountpoint
+
+def list_overlaid_files():
+    for (dev, prefix, typ, attrs) in get_overlays():
+        print("")
+        print(f"Modified or added files in {prefix}:")
+        path = re.match(r"/new_root(.*)", attrs["upperdir"])[1]
+        for file in glob.iglob(path + "/**/*", recursive=True):
+            print("   ", file.replace(path, prefix))
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+            prog="holo-tainted",
+            description="Summarize modified system state"
+        )
+    _ = parser.add_argument(
+        "-p",
+        "--packages",
+        action="store_true",
+        help="list new or missing packages and differing package versions"
+            "(this is the default if no arguments are provided)",
+    )
+    _ = parser.add_argument(
+        "-f",
+        "--files",
+        action="store_true",
+        help="list files changed in overlays",
+    )
+    args = parser.parse_args()
+
+    if args.packages or not args.files:
+        compare_installed_packages_with_manifest()
+    if args.files:
+        list_overlaid_files()
